@@ -1,0 +1,30 @@
+{
+  "profiles": [
+    {
+      "id": "profile-1",
+      "name": "たろう",
+      "avatarEmoji": "👦",
+      "grade": 3,
+      "dailyGoal": {
+        "targetQuestions": 5,
+        "targetMinutes": 10,
+        "rewardText": "🎮 ゲーム30分OK！"
+      }
+    },
+    {
+      "id": "profile-2",
+      "name": "はなこ",
+      "avatarEmoji": "👧",
+      "grade": 5,
+      "dailyGoal": {
+        "targetQuestions": 5,
+        "targetMinutes": 10,
+        "rewardText": "🍦 アイスプレゼント！"
+      }
+    }
+  ],
+  "progress": {},
+  "stats": {},
+  "reviews": {},
+  "reports": {}
+}

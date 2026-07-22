@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#54a0ff" />
+      <stop offset="100%" stop-color="#9b5de5" />
+    </linearGradient>
+    <linearGradient id="rocket-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#f0f4f9" />
+    </linearGradient>
+  </defs>
+  <!-- 背景円 -->
+  <circle cx="256" cy="256" r="240" fill="url(#bg-grad)" />
+  
+  <!-- ロケット本体 -->
+  <path d="M256,90 C290,170 290,280 280,340 L232,340 C222,280 222,170 256,90 Z" fill="url(#rocket-grad)" />
+  
+  <!-- ロケット頭部（赤） -->
+  <path d="M256,90 C272,128 277,170 277,180 L235,180 C235,170 240,128 256,90 Z" fill="#ff5e62" />
+  
+  <!-- 羽（左右） -->
+  <path d="M224,280 L180,340 L226,340 Z" fill="#ff9f43" />
+  <path d="M288,280 L332,340 L286,340 Z" fill="#ff9f43" />
+  
+  <!-- 窓 -->
+  <circle cx="256" cy="230" r="18" fill="#54a0ff" stroke="#e0e6ed" stroke-width="4" />
+  
+  <!-- 火花（下部） -->
+  <path d="M246,350 L256,380 L266,350 L256,360 Z" fill="#ffd166" />
+  <path d="M236,345 L256,410 L276,345 L256,370 Z" fill="#ff9f43" />
+
+  <!-- 周囲の星 -->
+  <polygon points="120,180 125,195 140,195 128,205 132,220 120,210 108,220 112,205 100,195 115,195" fill="#ffd166" />
+  <polygon points="380,240 383,250 393,250 385,257 388,267 380,260 372,267 375,257 367,250 377,250" fill="#ffd166" />
+  <polygon points="200,430 202,437 209,437 203,442 205,449 200,444 195,449 197,442 191,437 198,437" fill="#ffd166" />
+</svg>

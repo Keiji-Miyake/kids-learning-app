@@ -1,0 +1,397 @@
+import type { UserProfile, UserStats, ReviewItem, DailyReport, Subject } from '../types';
+
+const PROFILES_KEY = 'kids_learnquest_profiles_list';
+const ACTIVE_PROFILE_KEY = 'kids_learnquest_active_profile_id';
+const PARENT_PASSWORD_KEY = 'kids_learnquest_parent_master_password';
+
+
+const createInitialStats = (): UserStats => ({
+  level: 1,
+  exp: 0,
+  nextLevelExp: 100,
+  coins: 50,
+  streak: 0,
+  lastActiveDate: null,
+  unlockedBadges: [],
+  equippedAvatar: {
+    base: 'base-boy',
+    hat: 'hat-none',
+    accessory: 'acc-none',
+    companion: 'comp-none'
+  },
+  ownedItems: ['base-boy', 'base-girl', 'hat-none', 'acc-none', 'comp-none']
+});
+
+const defaultDailyGoal = {
+  targetQuestions: 5,
+  targetMinutes: 10,
+  rewardText: '🎮 ゲーム30分OK！'
+};
+
+const defaultProfiles: UserProfile[] = [
+  { id: 'profile-1', name: 'たろう', avatarEmoji: '👦', grade: 3, dailyGoal: defaultDailyGoal, stats: createInitialStats() },
+  { id: 'profile-2', name: 'はなこ', avatarEmoji: '👧', grade: 5, dailyGoal: defaultDailyGoal, stats: createInitialStats() },
+  { id: 'profile-3', name: 'じろう', avatarEmoji: '👶', grade: 1, dailyGoal: defaultDailyGoal, stats: createInitialStats() }
+];
+
+export const storage = {
+  // サーバー上のデータベースとローカルを同期させる
+  async syncFromServer(): Promise<void> {
+    try {
+      const res = await fetch('/api/profiles');
+      if (!res.ok) return;
+      const serverProfiles: UserProfile[] = await res.json();
+      
+      if (serverProfiles && serverProfiles.length > 0) {
+        // 各プロファイルの進捗データ（stats, reviews, reports）も同期取得
+        const updatedProfiles = await Promise.all(
+          serverProfiles.map(async (p) => {
+            // ステータス取得
+            const statsRes = await fetch(`/api/stats/${p.id}`);
+            const stats = statsRes.ok ? await statsRes.json() : null;
+            const finalStats = stats || createInitialStats();
+            
+            // 苦手ノート取得
+            const reviewsRes = await fetch(`/api/reviews/${p.id}`);
+            const reviews = reviewsRes.ok ? await reviewsRes.json() : [];
+            
+            // レポート取得
+            const reportsRes = await fetch(`/api/reports/${p.id}`);
+            const reports = reportsRes.ok ? await reportsRes.json() : [];
+
+            // LocalStorage に即時キャッシュ保存
+            localStorage.setItem(`kids_learnquest_stats_${p.id}`, JSON.stringify(finalStats));
+            localStorage.setItem(`kids_learnquest_review_${p.id}`, JSON.stringify(reviews));
+            localStorage.setItem(`kids_learnquest_reports_${p.id}`, JSON.stringify(reports));
+
+            return {
+              ...p,
+              dailyGoal: p.dailyGoal || defaultDailyGoal,
+              stats: finalStats
+            };
+          })
+        );
+
+        localStorage.setItem(PROFILES_KEY, JSON.stringify(updatedProfiles));
+        
+        // アクティブIDの保証
+        const activeId = localStorage.getItem(ACTIVE_PROFILE_KEY);
+        if (!activeId || !updatedProfiles.some(p => p.id === activeId)) {
+          localStorage.setItem(ACTIVE_PROFILE_KEY, updatedProfiles[0].id);
+        }
+        console.log("[Database Sync] 同期に成功しました！");
+      }
+    } catch (err) {
+      console.warn("[Database Sync] サーバーと接続できません。ローカルモードで動作します:", err);
+    }
+  },
+
+  // プロファイル一覧の取得
+  getProfiles(): UserProfile[] {
+    const data = localStorage.getItem(PROFILES_KEY);
+    if (!data) {
+      localStorage.setItem(PROFILES_KEY, JSON.stringify(defaultProfiles));
+      localStorage.setItem(ACTIVE_PROFILE_KEY, defaultProfiles[0].id);
+      return defaultProfiles;
+    }
+    try {
+      const parsed: UserProfile[] = JSON.parse(data);
+      const sanitized = parsed.map((p, idx) => ({
+        ...p,
+        avatarEmoji: p.avatarEmoji || defaultProfiles[idx % defaultProfiles.length]?.avatarEmoji || '🧑‍🚀',
+        grade: p.grade || defaultProfiles[idx % defaultProfiles.length]?.grade || 3,
+        dailyGoal: p.dailyGoal || defaultDailyGoal
+      }));
+      return sanitized;
+    } catch {
+      return defaultProfiles;
+    }
+  },
+
+  // アクティブなプロファイルIDの取得
+  getActiveProfileId(): string {
+    const profiles = this.getProfiles();
+    const activeId = localStorage.getItem(ACTIVE_PROFILE_KEY);
+    if (activeId && profiles.some(p => p.id === activeId)) {
+      return activeId;
+    }
+    return profiles[0].id;
+  },
+
+  // アクティブなプロファイルの切り替え
+  setActiveProfileId(id: string): void {
+    localStorage.setItem(ACTIVE_PROFILE_KEY, id);
+  },
+
+  // 現在のアクティブプロファイル取得
+  getActiveProfile(): UserProfile {
+    const profiles = this.getProfiles();
+    const activeId = this.getActiveProfileId();
+    const profile = profiles.find(p => p.id === activeId) || profiles[0];
+    profile.stats = this.getStats(profile.id);
+    return profile;
+  },
+
+  // プロファイルの追加
+  createProfile(name: string, avatarEmoji: string, grade: number = 3, pin?: string): UserProfile {
+    const profiles = this.getProfiles();
+    const newProfile: UserProfile = {
+      id: `profile-${Date.now()}`,
+      name: name.trim() || 'チャレンジャー',
+      avatarEmoji: avatarEmoji || '🧑‍🚀',
+      grade: grade || 3,
+      pin: pin ? pin.trim() : undefined,
+      stats: createInitialStats()
+    };
+    
+    // 1. ローカル保存
+    const updated = [...profiles, newProfile];
+    localStorage.setItem(PROFILES_KEY, JSON.stringify(updated));
+    this.saveStats(newProfile.stats, newProfile.id);
+
+    // 2. サーバーDBへ非同期送信
+    fetch('/api/profiles', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newProfile)
+    }).catch(err => console.warn("サーバー保存エラー:", err));
+
+    return newProfile;
+  },
+
+  // プロファイルの更新 (PIN設定・名前・学年変更など)
+  updateProfile(updatedProfile: UserProfile): void {
+    // 1. ローカル保存
+    const profiles = this.getProfiles();
+    const index = profiles.findIndex(p => p.id === updatedProfile.id);
+    if (index !== -1) {
+      profiles[index] = updatedProfile;
+      localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles));
+    }
+
+    // 2. サーバーDBへ非同期送信
+    fetch('/api/profiles', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedProfile)
+    }).catch(err => console.warn("サーバー更新エラー:", err));
+  },
+
+  // プロファイルの削除
+  deleteProfile(id: string): void {
+    const profiles = this.getProfiles();
+    if (profiles.length <= 1) {
+      alert('少なくとも1つのプロファイルが必要です。');
+      return;
+    }
+    // 1. ローカル削除
+    const updated = profiles.filter(p => p.id !== id);
+    localStorage.setItem(PROFILES_KEY, JSON.stringify(updated));
+    
+    localStorage.removeItem(`kids_learnquest_stats_${id}`);
+    localStorage.removeItem(`kids_learnquest_review_${id}`);
+    localStorage.removeItem(`kids_learnquest_reports_${id}`);
+
+    if (this.getActiveProfileId() === id) {
+      this.setActiveProfileId(updated[0].id);
+    }
+
+    // 2. サーバーDBへ非同期送信
+    fetch(`/api/profiles/${id}`, {
+      method: 'DELETE'
+    }).catch(err => console.warn("サーバー削除エラー:", err));
+  },
+
+  // プレイヤー統計の取得（プロファイル単位）
+  getStats(profileId?: string): UserStats {
+    const targetId = profileId || storage.getActiveProfileId();
+    const key = `kids_learnquest_stats_${targetId}`;
+    const data = localStorage.getItem(key);
+    if (!data) return createInitialStats();
+    try {
+      return { ...createInitialStats(), ...JSON.parse(data) };
+    } catch {
+      return createInitialStats();
+    }
+  },
+
+  // プレイヤー統計の保存（プロファイル単位）
+  saveStats(stats: UserStats, profileId?: string): void {
+    const targetId = profileId || storage.getActiveProfileId();
+    const key = `kids_learnquest_stats_${targetId}`;
+    
+    // 1. ローカル保存
+    localStorage.setItem(key, JSON.stringify(stats));
+
+    const profiles = storage.getProfiles();
+    const target = profiles.find(p => p.id === targetId);
+    if (target) {
+      target.stats = stats;
+      localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles));
+    }
+
+    // 2. サーバーDBへ非同期送信
+    fetch(`/api/stats/${targetId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(stats)
+    }).catch(err => console.warn("統計サーバー保存エラー:", err));
+  },
+
+  // 苦手問題ノートの取得（プロファイル単位）
+  getReviewItems(profileId?: string): ReviewItem[] {
+    const targetId = profileId || storage.getActiveProfileId();
+    const key = `kids_learnquest_review_${targetId}`;
+    const data = localStorage.getItem(key);
+    if (!data) return [];
+    try {
+      return JSON.parse(data);
+    } catch {
+      return [];
+    }
+  },
+
+  // 苦手問題ノートに新規登録
+  addReviewItem(item: Omit<ReviewItem, 'addedAt'>, profileId?: string): void {
+    const targetId = profileId || storage.getActiveProfileId();
+    const key = `kids_learnquest_review_${targetId}`;
+    const items = storage.getReviewItems(targetId);
+    if (items.some(i => i.questionId === item.questionId)) return;
+    const newItem: ReviewItem = {
+      ...item,
+      addedAt: new Date().toISOString()
+    };
+    
+    // 1. ローカル保存
+    const updated = [newItem, ...items];
+    localStorage.setItem(key, JSON.stringify(updated));
+
+    // 2. サーバーDBへ非同期送信
+    fetch(`/api/reviews/${targetId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updated)
+    }).catch(err => console.warn("苦手ノートサーバー保存エラー:", err));
+  },
+
+  // 苦手問題ノートから削除
+  removeReviewItem(questionId: string, profileId?: string): void {
+    const targetId = profileId || storage.getActiveProfileId();
+    const key = `kids_learnquest_review_${targetId}`;
+    const items = storage.getReviewItems(targetId);
+    const filtered = items.filter(i => i.questionId !== questionId);
+    
+    // 1. ローカル保存
+    localStorage.setItem(key, JSON.stringify(filtered));
+
+    // 2. サーバーDBへ非同期送信
+    fetch(`/api/reviews/${targetId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(filtered)
+    }).catch(err => console.warn("苦手ノートサーバー削除エラー:", err));
+  },
+
+  // 学習レポート取得（プロファイル単位）
+  getReports(profileId?: string): DailyReport[] {
+    const targetId = profileId || storage.getActiveProfileId();
+    const key = `kids_learnquest_reports_${targetId}`;
+    const data = localStorage.getItem(key);
+    if (!data) return [];
+    try {
+      return JSON.parse(data);
+    } catch {
+      return [];
+    }
+  },
+
+  // 学習レポートの更新
+  addReportData(subject: string, correct: boolean, timeSpentSeconds: number, profileId?: string): void {
+    const targetId = profileId || storage.getActiveProfileId();
+    const key = `kids_learnquest_reports_${targetId}`;
+    const reports = storage.getReports(targetId);
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    let todayReport = reports.find(r => r.date === todayStr);
+
+    if (!todayReport) {
+      todayReport = {
+        date: todayStr,
+        subjectMinutes: { math: 0, japanese: 0, science: 0, social: 0, english: 0 },
+        questionsAttempted: 0,
+        questionsCorrect: 0
+      };
+      reports.push(todayReport);
+    }
+
+    todayReport.questionsAttempted += 1;
+    if (correct) {
+      todayReport.questionsCorrect += 1;
+    }
+
+    const subjectKey = subject as Subject;
+    if (todayReport.subjectMinutes[subjectKey] !== undefined) {
+      todayReport.subjectMinutes[subjectKey] += timeSpentSeconds / 60;
+    }
+
+    // 1. ローカル保存
+    localStorage.setItem(key, JSON.stringify(reports));
+
+    // 2. サーバーDBへ非同期送信
+    fetch(`/api/reports/${targetId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(reports)
+    }).catch(err => console.warn("レポートサーバー更新エラー:", err));
+  },
+
+  // ストリークの更新判定（プロファイル単位）
+  checkAndUpdateStreak(profileId?: string): number {
+    const targetId = profileId || storage.getActiveProfileId();
+    const stats = storage.getStats(targetId);
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    if (!stats.lastActiveDate) {
+      stats.streak = 1;
+      stats.lastActiveDate = todayStr;
+      storage.saveStats(stats, targetId);
+      return 1;
+    }
+
+    const lastDate = new Date(stats.lastActiveDate);
+    const today = new Date(todayStr);
+    const diffTime = today.getTime() - lastDate.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 1) {
+      stats.streak += 1;
+      stats.lastActiveDate = todayStr;
+      storage.saveStats(stats, targetId);
+    } else if (diffDays > 1) {
+      stats.streak = 1;
+      stats.lastActiveDate = todayStr;
+      storage.saveStats(stats, targetId);
+    }
+
+    return stats.streak;
+  },
+
+  // 保護者マスターパスワードの取得 (デフォルト: 'parent')
+  getParentPassword(): string {
+    const saved = localStorage.getItem(PARENT_PASSWORD_KEY);
+    return saved || 'parent';
+  },
+
+  // 保護者マスターパスワードの更新
+  setParentPassword(newPassword: string): void {
+    if (!newPassword || !newPassword.trim()) return;
+    localStorage.setItem(PARENT_PASSWORD_KEY, newPassword.trim());
+  },
+
+  // 保護者マスターパスワードの検証
+  verifyParentPassword(inputPassword: string): boolean {
+    const current = storage.getParentPassword();
+    return current === inputPassword.trim();
+  }
+};
+
