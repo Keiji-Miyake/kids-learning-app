@@ -51,7 +51,8 @@ npm run build
 
 ## 🌐 SSH 汎用デプロイ (Linux サーバー / Raspberry Pi / VPS)
 
-詳細な手順については [DEPLOY_GUIDE.md](./DEPLOY_GUIDE.md) および AGY スキル [ssh-app-deploy](file:///u:/home/dev/workspace/kids-learning-app/skills/ssh-app-deploy/SKILL.md) をご覧ください。
+詳細な手順については [DEPLOY_GUIDE.md](./DEPLOY_GUIDE.md) および AGY スキル [ssh-app-deploy](file:///u:/home/dev/workspace/kids-learning-app/.agents/skills/ssh-app-deploy/SKILL.md) をご覧ください。
+
 
 
 ```bash
