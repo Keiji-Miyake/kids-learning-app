@@ -44,16 +44,51 @@ export const App: React.FC = () => {
     wrongQuestionIds: string[];
   } | null>(null);
 
-  // 起動時のサーバー同期と初期化
+  // 起動時・タブフォーカス時・定期自動同期
   useEffect(() => {
-    const init = async () => {
-      await storage.syncFromServer();
-      const currentActive = storage.getActiveProfile();
-      setActiveProfile(currentActive);
-      const updatedStreak = storage.checkAndUpdateStreak(currentActive.id);
-      setStats({ ...storage.getStats(currentActive.id), streak: updatedStreak });
+    let isMounted = true;
+
+    const syncAndRefresh = async () => {
+      try {
+        await storage.syncFromServer();
+        if (!isMounted) return;
+        const currentActive = storage.getActiveProfile();
+        setActiveProfile(currentActive);
+        const updatedStreak = storage.checkAndUpdateStreak(currentActive.id);
+        setStats({ ...storage.getStats(currentActive.id), streak: updatedStreak });
+      } catch (err) {
+        console.warn("Background sync failed:", err);
+      }
     };
-    init();
+
+    // 初期化同期
+    syncAndRefresh();
+
+    // タブ復帰（フォーカス）時の自動同期
+    const handleFocus = () => {
+      syncAndRefresh();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        syncAndRefresh();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // 15秒間隔の定期バックグラウンド同期タイマー
+    const timerId = setInterval(() => {
+      syncAndRefresh();
+    }, 15000);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearInterval(timerId);
+    };
   }, []);
 
   const handleUpdateStats = (newStats: UserStats) => {

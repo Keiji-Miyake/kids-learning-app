@@ -134,19 +134,19 @@ export const storage = {
               body: JSON.stringify(finalStats)
             }).catch(() => {});
 
-            // ノルマ設定(dailyGoal)はカスタマイズ値を最優先保護（ローカル ➔ サーバー ➔ デフォルト）
+            // 🎯 ノルマ設定(dailyGoal)は保護者変更のサーバー最新値を最優先（デフォルト ➔ ローカル ➔ サーバー）
             const mergedGoal: DailyGoal = {
               ...(defaultDailyGoal),
-              ...(p.dailyGoal || {}),
-              ...(localP?.dailyGoal || {})
+              ...(localP?.dailyGoal || {}),
+              ...(p.dailyGoal || {})
             };
 
             return {
               ...p,
-              name: localP?.name || p.name,
-              avatarEmoji: localP?.avatarEmoji || p.avatarEmoji,
-              pin: localP?.pin || p.pin,
-              grade: localP?.grade || p.grade,
+              name: p.name || localP?.name || '',
+              avatarEmoji: p.avatarEmoji || localP?.avatarEmoji || '🧑‍🚀',
+              pin: p.pin !== undefined ? p.pin : localP?.pin,
+              grade: p.grade || localP?.grade || 3,
               dailyGoal: mergedGoal,
               stats: finalStats
             };
