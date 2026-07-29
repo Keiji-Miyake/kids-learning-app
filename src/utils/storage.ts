@@ -529,7 +529,11 @@ export const storage = {
       });
       if (res.ok) {
         const data = await res.json();
-        return !!data.valid;
+        if (data.valid) {
+          localStorage.setItem(PARENT_PASSWORD_KEY, trimmed);
+          return true;
+        }
+        return false;
       }
     } catch {
       // ネットワーク接続エラー・オフライン時はローカルデータでフォールバック検証

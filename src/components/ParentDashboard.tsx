@@ -55,11 +55,12 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onClose }) => 
   );
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string>('');
 
-  const handleParentAuthSubmit = (e: React.FormEvent) => {
+  const handleParentAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     sound.playClick();
     
-    if (storage.verifyParentPassword(parentInputPassword)) {
+    const isValid = await storage.verifyParentPasswordAsync(parentInputPassword);
+    if (isValid) {
       sound.playCorrect();
       setIsParentUnlocked(true);
       setAuthError('');
