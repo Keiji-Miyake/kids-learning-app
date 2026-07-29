@@ -25,4 +25,28 @@ describe('端末間同期およびアバターアイコン連動テスト (Cross
     expect(updatedProfile.stats.equippedAvatar.hat).toBe('hat-crown');
     expect(updatedProfile.stats.equippedAvatar.accessory).toBe('acc-glasses');
   });
+
+  it('サーバーまたはローカルに装備されたスキン(equippedAvatar)が同期によって初期化されないこと', async () => {
+    // ローカルに装備設定を保存
+    const activeId = storage.getActiveProfileId();
+    const currentStats = storage.getStats(activeId);
+    const equippedStats: UserStats = {
+      ...currentStats,
+      equippedAvatar: {
+        base: 'base-cat',
+        hat: 'hat-grad',
+        accessory: 'acc-star',
+        companion: 'comp-owl'
+      }
+    };
+    storage.saveStats(equippedStats, activeId);
+
+    // 同期を実行
+    await storage.syncFromServer();
+
+    const syncedStats = storage.getStats(activeId);
+    expect(syncedStats.equippedAvatar.hat).toBe('hat-grad');
+    expect(syncedStats.equippedAvatar.accessory).toBe('acc-star');
+    expect(syncedStats.equippedAvatar.companion).toBe('comp-owl');
+  });
 });

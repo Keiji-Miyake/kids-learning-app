@@ -80,6 +80,27 @@ export const storage = {
             const statsRes = await fetch(`/api/stats/${p.id}`);
             const serverStats: UserStats | null = statsRes.ok ? await statsRes.json() : null;
 
+            const serverEquipped = serverStats?.equippedAvatar;
+            const localEquipped = localStats?.equippedAvatar;
+
+            const finalEquipped = {
+              base: (serverEquipped?.base && serverEquipped.base !== 'base-boy' && serverEquipped.base !== 'base-girl')
+                ? serverEquipped.base
+                : (localEquipped?.base || serverEquipped?.base || 'base-boy'),
+
+              hat: (serverEquipped?.hat && serverEquipped.hat !== 'hat-none')
+                ? serverEquipped.hat
+                : (localEquipped?.hat || serverEquipped?.hat || 'hat-none'),
+
+              accessory: (serverEquipped?.accessory && serverEquipped.accessory !== 'acc-none')
+                ? serverEquipped.accessory
+                : (localEquipped?.accessory || serverEquipped?.accessory || 'acc-none'),
+
+              companion: (serverEquipped?.companion && serverEquipped.companion !== 'comp-none')
+                ? serverEquipped.companion
+                : (localEquipped?.companion || serverEquipped?.companion || 'comp-none')
+            };
+
             // 🌟 レベル・Exp・コイン・所持アイテム等の「最高進捗」を完全保護・マージ
             const finalStats: UserStats = {
               level: Math.max(serverStats?.level || 1, localStats?.level || 1),
@@ -89,12 +110,7 @@ export const storage = {
               streak: Math.max(serverStats?.streak || 0, localStats?.streak || 0),
               lastActiveDate: serverStats?.lastActiveDate || localStats?.lastActiveDate || null,
               unlockedBadges: Array.from(new Set([...(serverStats?.unlockedBadges || []), ...(localStats?.unlockedBadges || [])])),
-              equippedAvatar: localStats?.equippedAvatar || serverStats?.equippedAvatar || {
-                base: 'base-boy',
-                hat: 'hat-none',
-                accessory: 'acc-none',
-                companion: 'comp-none'
-              },
+              equippedAvatar: finalEquipped,
               ownedItems: Array.from(new Set([...(serverStats?.ownedItems || []), ...(localStats?.ownedItems || [])]))
             };
             
