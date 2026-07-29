@@ -25,7 +25,8 @@
 - Never close an issue or PR without my approval
 
 ## Budget
-- If token spend hits 80% of daily cap, switch to report-only
+- Limit execution to ONE single scope (e.g. one small UI tweak or one content addition) per run to save tokens.
+- If token spend hits 50% of daily cap, skip autonomous tasks and switch to report-only for the rest of the day.
 - If loop-pause-all is active, exit immediately
 
 ---

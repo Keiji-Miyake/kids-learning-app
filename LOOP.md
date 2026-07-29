@@ -4,7 +4,8 @@
 
 | Pattern | Cadence | Status | Command |
 |---------|---------|--------|---------|
-| Daily Triage & Test Loop | 1d | L2 Active | `npm test && npm run build` |
+| UI/Responsive Verification | Weekly (Mon) | L2 Active | `npm run lint` or script |
+| Content Expansion & Test | Weekly (Thu) | L2 Active | `npm test && npm run build` |
 | Progress & Data Audit | On Edit | Active | `npx @cobusgreyling/loop-audit .` |
 
 ## Human Gates & Safety Policies
