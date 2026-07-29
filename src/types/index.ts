@@ -36,6 +36,10 @@ export interface DailyGoal {
   targetQuestions: number; // 例: 5問
   targetMinutes: number;   // 例: 10分
   rewardText: string;      // 例: "ゲーム30分OK！", "お小遣い50円GET！"
+  goalType?: 'total_count' | 'subject_specific'; // 🎯 ノルマ達成の判定基準モード ('total_count': 全体問題数, 'subject_specific': 教科ごと)
+  targetSubject?: Subject | 'all'; // 特定対象科目
+  targetUnitName?: string | 'all'; // 特定対象単元名
+  subjectGoals?: Partial<Record<Subject, { targetQuestions: number; targetMinutes: number }>>; // 教科別個別の目標
 }
 
 export interface UserProfile {
@@ -63,4 +67,6 @@ export interface DailyReport {
   subjectMinutes: Record<Subject, number>;
   questionsAttempted: number;
   questionsCorrect: number;
+  totalQuestions?: number;
+  subjectBreakdown?: Partial<Record<Subject, { total: number; correct?: number }>>;
 }

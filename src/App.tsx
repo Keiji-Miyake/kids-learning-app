@@ -15,19 +15,20 @@ import { questions } from './data/questions';
 import type { UserStats, Subject, Question, UserProfile } from './types';
 import { storage } from './utils/storage';
 
-import { generateDynamicQuestion } from './utils/questionGenerator';
+import { generateUniqueQuizSet } from './utils/quizSetGenerator';
 import { RoadmapScreen } from './components/RoadmapScreen';
 import ExamScreen from './components/ExamScreen';
 
 import type { CurriculumUnit } from './data/curriculumLOD';
 import { markUnitCompleted } from './data/progress';
+import { checkIsDailyGoalAchieved, getSubjectProgressSummary } from './utils/goalEvaluator';
 
 
 export const App: React.FC = () => {
   const [activeProfile, setActiveProfile] = useState<UserProfile>(storage.getActiveProfile());
   const [stats, setStats] = useState<UserStats>(storage.getStats(activeProfile.id));
   const [currentScreen, setCurrentScreen] = useState<string>('home'); // home | quiz | result | shop | collection | review | dashboard
-  const [showProfileModal, setShowProfileModal] = useState<boolean>(false);
+  const [showProfileModal, setShowProfileModal] = useState<boolean>(true);
   const [showGoalAchievedModal, setShowGoalAchievedModal] = useState<boolean>(false);
   const [gridCols, setGridCols] = useState<'auto' | 'cols-2' | 'cols-3'>('cols-3');
 
@@ -55,6 +56,15 @@ export const App: React.FC = () => {
     init();
   }, []);
 
+  const handleUpdateStats = (newStats: UserStats) => {
+    setStats(newStats);
+    storage.saveStats(newStats, activeProfile.id);
+    setActiveProfile(prev => ({
+      ...prev,
+      stats: newStats
+    }));
+  };
+
   const handleSelectProfile = (profile: UserProfile) => {
     setActiveProfile(profile);
     const updatedStreak = storage.checkAndUpdateStreak(profile.id);
@@ -76,34 +86,9 @@ export const App: React.FC = () => {
     setActiveUnit(unit);
     const unitName = unit ? unit.unitName : '';
 
-    // 選択された教科・学年・単元に完全に連動した動的問題を5問生成
-    const dynQuestions: Question[] = [];
-    for (let i = 0; i < 5; i++) {
-      dynQuestions.push(generateDynamicQuestion(subject, grade, unitName));
-    }
-
-    const subjectQuestions = questions.filter(q => q.subject === subject);
-    let targetQuestions = subjectQuestions.filter(q => q.grade === grade);
-
-    // 単元名で優先フィルタリング
-    if (unitName) {
-      const unitFiltered = targetQuestions.filter(q => 
-        q.questionText.includes(unitName) || 
-        q.explanation.includes(unitName)
-      );
-      if (unitFiltered.length > 0) {
-        targetQuestions = unitFiltered;
-      }
-    }
-
-    // 単元連動動的問題を最優先にプールを作成
-    const fullPool = [...dynQuestions, ...targetQuestions].sort(() => Math.random() - 0.5);
-    const freshPool = fullPool.filter(q => !recentQuestionIds.includes(q.id));
-    const poolToUse = freshPool.length >= 5 ? freshPool : fullPool;
-
-    const selected5 = poolToUse.slice(0, 5);
+    // 重複を100%排除した5問のユニーク問題セットを生成
+    const selected5 = generateUniqueQuizSet(subject, grade, 5, unitName, recentQuestionIds);
     setRecentQuestionIds(selected5.map(q => q.id));
-
 
     setActiveQuestions(selected5);
     setActiveSubject(subject);
@@ -119,11 +104,8 @@ export const App: React.FC = () => {
     setExamUnit(unit);
     setActiveSubject(subject);
 
-    // 10問の本格単元テスト問題を生成
-    const examPool: Question[] = [];
-    for (let i = 0; i < 10; i++) {
-      examPool.push(generateDynamicQuestion(subject, grade, unit.unitName));
-    }
+    // 10問の完全ユニーク本格単元テスト問題を生成
+    const examPool = generateUniqueQuizSet(subject, grade, 10, unit.unitName);
     setExamQuestions(examPool);
     setCurrentScreen('exam');
   };
@@ -132,23 +114,26 @@ export const App: React.FC = () => {
   const handleFinishQuiz = (correctCount: number, totalCount: number, wrongQuestionIds: string[]) => {
     const timeSpentSeconds = Math.floor((Date.now() - quizStartTime) / 1000);
 
-    const goalTarget = activeProfile.dailyGoal?.targetQuestions || 5;
     const reportsBefore = storage.getReports(activeProfile.id);
     const todayStr = new Date().toISOString().split('T')[0];
     const todayReportBefore = reportsBefore.find(r => r.date === todayStr);
-    const countBefore = todayReportBefore ? todayReportBefore.questionsAttempted : 0;
+
+    const goal = activeProfile.dailyGoal;
+    const isAchievedBefore = checkIsDailyGoalAchieved(goal, todayReportBefore);
 
     // アクティブなプロファイルに対して学習レポートを登録
     storage.addReportData(activeSubject, correctCount === totalCount, timeSpentSeconds, activeProfile.id);
+
+    const reportsAfter = storage.getReports(activeProfile.id);
+    const todayReportAfter = reportsAfter.find(r => r.date === todayStr);
+    const isAchievedAfter = checkIsDailyGoalAchieved(goal, todayReportAfter);
 
     // 選択された単元がある場合は進捗完了を記録
     if (activeUnit) {
       markUnitCompleted(activeProfile.id, activeUnit.code);
     }
 
-    const countAfter = countBefore + totalCount;
-
-    if (countBefore < goalTarget && countAfter >= goalTarget) {
+    if (!isAchievedBefore && isAchievedAfter) {
       setShowGoalAchievedModal(true);
     }
 
@@ -225,25 +210,42 @@ export const App: React.FC = () => {
               const todayAttempted = todayReport ? todayReport.questionsAttempted : 0;
               const goal = activeProfile.dailyGoal || { targetQuestions: 5, targetMinutes: 10, rewardText: '🎮 ゲーム30分OK！' };
               const goalTarget = goal.targetQuestions;
-              const isGoalAchieved = todayAttempted >= goalTarget;
+              const isGoalAchieved = checkIsDailyGoalAchieved(goal, todayReport);
+
+              const subjectLabels: Record<Subject, string> = {
+                math: '🧮 算数',
+                japanese: '📖 国語',
+                science: '🧪 理科',
+                social: '🗺 社会',
+                english: '🔤 英語'
+              };
+
+              const goalTypeMode = goal.goalType || 'total_count';
+              const subjectSummary = getSubjectProgressSummary(goal, todayReport);
 
               return (
-                <section className="daily-goal-card card">
+                <section className="daily-goal-card card" style={{ border: '2px solid #3b82f6', background: 'linear-gradient(135deg, #ffffff 0%, #eff6ff 100%)' }}>
                   <div className="goal-card-header">
-                    <div className="goal-card-title">
+                    <div className="goal-card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span className="goal-emoji">🎯</span>
                       <h3>きょうのノルマ ({todayAttempted} / {goalTarget} 問)</h3>
+                      <span style={{ fontSize: '11px', background: '#dbeafe', color: '#1e40af', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>
+                        {goalTypeMode === 'subject_specific' ? '📚 教科別ノルマ' : '🎯 全体問題数ノルマ'}
+                      </span>
                     </div>
                     {isGoalAchieved ? (
                       <span 
                         className="goal-badge achieved" 
                         onClick={() => setShowGoalAchievedModal(true)}
                         title="ご褒美カードを見る"
+                        style={{ cursor: 'pointer', background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: '#fff', fontWeight: 'bold', boxShadow: '0 2px 8px rgba(245, 158, 11, 0.4)' }}
                       >
-                        🎉 達成済み！(ご褒美を見る)
+                        🎉 今日のノルマ達成！(ご褒美を見る)
                       </span>
                     ) : (
-                      <span className="goal-badge in-progress">あと {Math.max(0, goalTarget - todayAttempted)} 問！</span>
+                      <span className="goal-badge in-progress" style={{ background: '#f59e0b', color: '#fff', fontWeight: 'bold' }}>
+                        ⏳ あと {Math.max(0, goalTarget - todayAttempted)} 問！
+                      </span>
                     )}
                   </div>
 
@@ -254,7 +256,58 @@ export const App: React.FC = () => {
                     ></div>
                   </div>
 
-                  <div className="goal-card-footer">
+                  {/* 🌟 重点目標 ＆ 単元表示 */}
+                  {(goal.targetSubject && goal.targetSubject !== 'all' || goal.targetUnitName && goal.targetUnitName !== 'all') && (
+                    <div style={{ marginTop: '12px', background: '#dbeafe', padding: '8px 12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#1e40af', fontWeight: 'bold' }}>
+                      <span>🔥 重点目標:</span>
+                      {goal.targetSubject && goal.targetSubject !== 'all' && (
+                        <span style={{ background: '#3b82f6', color: '#fff', padding: '2px 8px', borderRadius: '12px' }}>
+                          {subjectLabels[goal.targetSubject as Subject] || goal.targetSubject}
+                        </span>
+                      )}
+                      {goal.targetUnitName && goal.targetUnitName !== 'all' && (
+                        <span style={{ background: '#1d4ed8', color: '#fff', padding: '2px 8px', borderRadius: '12px' }}>
+                          単元: {goal.targetUnitName}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 📚 教科ごとの個別ノルマ進捗 */}
+                  {goal.subjectGoals && Object.values(goal.subjectGoals).some(g => (g?.targetQuestions || 0) > 0) && (
+                    <div style={{ marginTop: '12px' }}>
+                      <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '6px' }}>📚 教科ごとの個別目標と今日のできた数:</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                        {(['math', 'japanese', 'science', 'social', 'english'] as Subject[]).map(sub => {
+                          const info = subjectSummary[sub];
+                          if (!info || info.target === 0) return null;
+                          const isSubDone = info.isCompleted;
+
+                          return (
+                            <span 
+                              key={sub}
+                              style={{ 
+                                background: isSubDone ? '#dcfce7' : '#f1f5f9', 
+                                color: isSubDone ? '#15803d' : '#334155',
+                                border: isSubDone ? '2px solid #22c55e' : '1px solid #cbd5e1',
+                                padding: '4px 10px', 
+                                borderRadius: '16px',
+                                fontSize: '12px',
+                                fontWeight: 'bold',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                            >
+                              {subjectLabels[sub]}: {info.current} / {info.target}問 {isSubDone ? '✅ 達成!' : ''}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="goal-card-footer" style={{ marginTop: '12px' }}>
                     <span className="goal-reward-preview">
                       🎁 クリアのご褒美（約束）: <strong>{goal.rewardText}</strong>
                     </span>
@@ -356,10 +409,7 @@ export const App: React.FC = () => {
           <CollectionScreen
             stats={stats}
             profileEmoji={activeProfile.avatarEmoji}
-            onUpdateStats={(newStats) => {
-              setStats(newStats);
-              storage.saveStats(newStats, activeProfile.id);
-            }}
+            onUpdateStats={handleUpdateStats}
             onClose={() => setCurrentScreen('home')}
           />
         )}
@@ -382,10 +432,7 @@ export const App: React.FC = () => {
         <ShopModal
           stats={stats}
           profileEmoji={activeProfile.avatarEmoji}
-          onUpdateStats={(newStats) => {
-            setStats(newStats);
-            storage.saveStats(newStats, activeProfile.id);
-          }}
+          onUpdateStats={handleUpdateStats}
           onClose={() => setCurrentScreen('home')}
         />
       )}

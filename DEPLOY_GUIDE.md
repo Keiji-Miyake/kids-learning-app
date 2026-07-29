@@ -24,9 +24,15 @@ node -v
 # ビルド
 npm run build
 
-# 成果物のアーカイブ化
-tar czf app-release.tar.gz dist server.js package.json package-lock.json
+# 成果物のアーカイブ化 (※本番のdb.jsonを上書き・消去しないよう、開発環境のdb.jsonは含めません)
+tar czf app-release.tar.gz --exclude=db.json dist server.js package.json package-lock.json
 ```
+
+> [!IMPORTANT]
+> **ユーザーデータ (`db.json`) の保全について**
+> - サーバー上で稼働中に保存されたプロファイル、学習進捗、保護者パスワードハッシュ等のデータは `db.json` に保存されます。
+> - `tar xzf` による展開時にも既存の `db.json` は上書きされず安全に保持されます。
+
 
 ### ② SSH 経由での転送
 ```bash

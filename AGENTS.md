@@ -1,8 +1,8 @@
 # AGENTS.md
 
 ## Test commands
-npm test
-npm run lint
+wsl --cd /home/dev/workspace/kids-learning-app npm test
+wsl --cd /home/dev/workspace/kids-learning-app npm run lint
 
 ## Loop conventions
 - Report-only week one (L1) before enabling auto-fix (L2)

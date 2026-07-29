@@ -1514,7 +1514,7 @@ body {
   background: #ffffff;
   border: 3px solid #e2e8f0;
   border-radius: var(--border-radius-lg);
-  padding: 20px 16px;
+  padding: 28px 16px 20px 16px;
   text-align: center;
   cursor: pointer;
   position: relative;
@@ -1532,9 +1532,14 @@ body {
   background: #fffdf5;
 }
 
-.profile-avatar {
-  font-size: 48px;
-  margin-bottom: 8px;
+.profile-avatar-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 70px;
+  height: 70px;
+  margin: 12px auto 8px auto;
+  position: relative;
 }
 
 .profile-name {

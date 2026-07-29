@@ -3,6 +3,7 @@ import type { UserProfile } from '../types';
 import { storage } from '../utils/storage';
 import { sound } from '../utils/sound';
 import { haptics } from '../utils/haptics';
+import AvatarPreview from './AvatarPreview';
 
 interface ProfileSelectorModalProps {
   onSelectProfile: (profile: UserProfile) => void;
@@ -32,13 +33,17 @@ export const ProfileSelectorModal: React.FC<ProfileSelectorModalProps> = ({
   const [profiles, setProfiles] = useState<UserProfile[]>(storage.getProfiles());
   const [activeId, setActiveId] = useState<string>(storage.getActiveProfileId());
   
-  // モード: 'list' | 'pin-verify' | 'add' | 'edit'
-  const [mode, setMode] = useState<'list' | 'pin-verify' | 'add' | 'edit'>('list');
+  // モード: 'list' | 'pin-verify' | 'add' | 'edit' | 'auth_add'
+  const [mode, setMode] = useState<'list' | 'pin-verify' | 'add' | 'edit' | 'auth_add'>('list');
   const [targetProfile, setTargetProfile] = useState<UserProfile | null>(null);
   
   // PIN入力用
   const [enteredPin, setEnteredPin] = useState<string>('');
   const [pinError, setPinError] = useState<boolean>(false);
+
+  // 保護者認証用 (プロフィール追加制限)
+  const [parentPasswordInput, setParentPasswordInput] = useState('');
+  const [authError, setAuthError] = useState('');
 
   // 編集用フォームステート
   const [editName, setEditName] = useState('');
@@ -122,11 +127,19 @@ export const ProfileSelectorModal: React.FC<ProfileSelectorModalProps> = ({
 
   const handleOpenAdd = () => {
     sound.playClick();
-    const inputPass = prompt('🔑 新しいプレイヤーを追加するには、保護者パスワードを入力してください：\n(※ 初期パスワード: parent)');
-    if (inputPass === null) return;
-    if (!canAddProfile(inputPass)) {
-      alert('❌ 保護者パスワードが正しくありません。プレイヤーの追加は保護者の方のみ可能です。');
+    setParentPasswordInput('');
+    setAuthError('');
+    setMode('auth_add');
+  };
+
+  const handleVerifyParentPasswordForAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    sound.playClick();
+    const isValid = await storage.verifyParentPasswordAsync(parentPasswordInput);
+    if (!isValid) {
       sound.playWrong();
+      haptics.vibrateWrong();
+      setAuthError('❌ 保護者パスワードが正しくありません。');
       return;
     }
     sound.playCorrect();
@@ -221,7 +234,9 @@ export const ProfileSelectorModal: React.FC<ProfileSelectorModalProps> = ({
                       <span className="pin-lock-badge unlocked" title="ロックなし">🔓</span>
                     )}
 
-                    <div className="profile-avatar">{p.avatarEmoji}</div>
+                    <div className="profile-avatar-wrap">
+                      <AvatarPreview equipped={stats.equippedAvatar} profileEmoji={p.avatarEmoji} size="md" />
+                    </div>
                     <h3 className="profile-name">{p.name}</h3>
                     <div className="profile-grade-tag">🎓 {getGradeLabel(p.grade)}</div>
 
@@ -270,7 +285,9 @@ export const ProfileSelectorModal: React.FC<ProfileSelectorModalProps> = ({
         {mode === 'pin-verify' && targetProfile && (
           <div className="profile-selector-body pin-verify-container fade-in">
             <div className="pin-target-header">
-              <span className="pin-avatar">{targetProfile.avatarEmoji}</span>
+              <div className="pin-avatar-wrap" style={{ width: '70px', height: '70px', margin: '0 auto 12px auto', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                <AvatarPreview equipped={storage.getStats(targetProfile.id).equippedAvatar} profileEmoji={targetProfile.avatarEmoji} size="md" />
+              </div>
               <h3>{targetProfile.name} さんのロックキー</h3>
               <p>4桁の暗証番号（PIN）を入力してね！</p>
             </div>
@@ -450,6 +467,38 @@ export const ProfileSelectorModal: React.FC<ProfileSelectorModalProps> = ({
 
             <div className="form-actions">
               <button type="submit" className="start-btn">変更を保存する</button>
+              <button type="button" className="cancel-btn" onClick={() => setMode('list')}>キャンセル</button>
+            </div>
+          </form>
+        )}
+
+        {/* 2.5 保護者認証モード (プロフィール追加時のパスワード入力 / マスク対応) */}
+        {mode === 'auth_add' && (
+          <form className="add-profile-form card fade-in" onSubmit={handleVerifyParentPasswordForAdd}>
+            <h4>🔑 保護者確認</h4>
+            <p style={{ fontSize: '14px', color: '#666', marginBottom: '16px' }}>
+              新しいプレイヤーを追加するには、保護者マスターパスワードを入力してください。
+            </p>
+
+            <div className="form-group">
+              <label>保護者パスワード：</label>
+              <input
+                type="password"
+                className="profile-input"
+                placeholder="パスワードを入力 (初期値: parent)"
+                value={parentPasswordInput}
+                onChange={(e) => {
+                  setParentPasswordInput(e.target.value);
+                  setAuthError('');
+                }}
+                autoFocus
+                required
+              />
+              {authError && <p className="pin-error-text" style={{ marginTop: '8px' }}>{authError}</p>}
+            </div>
+
+            <div className="form-actions">
+              <button type="submit" className="start-btn">認証して進む</button>
               <button type="button" className="cancel-btn" onClick={() => setMode('list')}>キャンセル</button>
             </div>
           </form>

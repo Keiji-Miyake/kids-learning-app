@@ -33,7 +33,8 @@ npm run build
 ### A. ビルド ＆ パッケージング
 ```bash
 npm run build
-tar czf app-release.tar.gz dist server.js package.json package-lock.json
+# ※本番のユーザーデータ(db.json)を誤って上書きしないため --exclude=db.json を指定
+tar czf app-release.tar.gz --exclude=db.json dist server.js package.json package-lock.json
 ```
 
 ### B. SSH 転送 ＆ リモートサーバーでのプロセス起動

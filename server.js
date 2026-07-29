@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -11,6 +12,12 @@ const app = express();
 const PORT = process.env.PORT || 3002;
 const DB_FILE = path.join(__dirname, 'db.json');
 
+// SHA-256 パスワードハッシュ計算ヘルパー
+function hashPassword(password) {
+  return crypto.createHash('sha256').update(String(password).trim()).digest('hex');
+}
+
+const DEFAULT_PARENT_PASSWORD_HASH = hashPassword('parent');
 
 app.use(cors());
 app.use(express.json());
@@ -19,6 +26,7 @@ app.use(express.json());
 function readDB() {
   if (!fs.existsSync(DB_FILE)) {
     const initialData = {
+      parentPasswordHash: DEFAULT_PARENT_PASSWORD_HASH,
       profiles: [
         { id: 'profile-1', name: 'たろう', avatarEmoji: '👦', grade: 3, pin: undefined },
         { id: 'profile-2', name: 'はなこ', avatarEmoji: '👧', grade: 5, pin: undefined },
@@ -36,10 +44,11 @@ function readDB() {
     const content = fs.readFileSync(DB_FILE, 'utf-8');
     const data = JSON.parse(content);
     if (!data.progress) data.progress = {};
+    if (!data.parentPasswordHash) data.parentPasswordHash = DEFAULT_PARENT_PASSWORD_HASH;
     return data;
   } catch (err) {
     console.error("DB読み込みエラー、リセットします:", err);
-    return { profiles: [], stats: {}, reviews: {}, reports: {}, progress: {} };
+    return { parentPasswordHash: DEFAULT_PARENT_PASSWORD_HASH, profiles: [], stats: {}, reviews: {}, reports: {}, progress: {} };
   }
 }
 
@@ -58,24 +67,39 @@ app.get('/api/profiles', (req, res) => {
   res.json(db.profiles);
 });
 
-// 2. プロファイル作成
+// 2. プロファイル作成（同名・同IDの重複防止付き）
 app.post('/api/profiles', (req, res) => {
   const db = readDB();
-  const newProfile = req.body; // { id, name, avatarEmoji, grade, pin, stats }
+  const newProfile = req.body; // { id, name, avatarEmoji, grade, pin, dailyGoal, stats }
   
-  // プロファイル一覧に追加
-  db.profiles.push({
-    id: newProfile.id,
-    name: newProfile.name,
-    avatarEmoji: newProfile.avatarEmoji,
-    grade: newProfile.grade,
-    pin: newProfile.pin
-  });
-
-  // 初期ステータスやセーブデータを初期化
-  db.stats[newProfile.id] = newProfile.stats;
-  db.reviews[newProfile.id] = [];
-  db.reports[newProfile.id] = [];
+  // すでに同名または同IDのプロファイルが存在するかチェック
+  const existingIdx = db.profiles.findIndex(p => p.id === newProfile.id || p.name === newProfile.name);
+  if (existingIdx !== -1) {
+    db.profiles[existingIdx] = {
+      id: db.profiles[existingIdx].id,
+      name: newProfile.name,
+      avatarEmoji: newProfile.avatarEmoji,
+      grade: newProfile.grade,
+      pin: newProfile.pin,
+      dailyGoal: newProfile.dailyGoal || db.profiles[existingIdx].dailyGoal
+    };
+    if (newProfile.stats) {
+      db.stats[db.profiles[existingIdx].id] = newProfile.stats;
+    }
+  } else {
+    // 新規プロファイル一覧に追加
+    db.profiles.push({
+      id: newProfile.id,
+      name: newProfile.name,
+      avatarEmoji: newProfile.avatarEmoji,
+      grade: newProfile.grade,
+      pin: newProfile.pin,
+      dailyGoal: newProfile.dailyGoal
+    });
+    db.stats[newProfile.id] = newProfile.stats;
+    db.reviews[newProfile.id] = [];
+    db.reports[newProfile.id] = [];
+  }
 
   writeDB(db);
   res.json({ success: true, profile: newProfile });
@@ -93,7 +117,8 @@ app.put('/api/profiles', (req, res) => {
       name: updated.name,
       avatarEmoji: updated.avatarEmoji,
       grade: updated.grade,
-      pin: updated.pin
+      pin: updated.pin,
+      dailyGoal: updated.dailyGoal || db.profiles[idx].dailyGoal
     };
     writeDB(db);
     res.json({ success: true });
@@ -188,6 +213,38 @@ app.post('/api/progress', (req, res) => {
     writeDB(db);
   }
   res.json({ success: true, profileId, completedUnits: db.progress[profileId] });
+});
+
+// 10.7. 保護者パスワードの検証
+app.post('/api/parent-password/verify', (req, res) => {
+  const db = readDB();
+  const { password } = req.body;
+  if (!password) {
+    return res.status(400).json({ valid: false, error: 'Password required' });
+  }
+  const inputHash = hashPassword(password);
+  const targetHash = db.parentPasswordHash || DEFAULT_PARENT_PASSWORD_HASH;
+  const valid = inputHash === targetHash;
+  res.json({ valid });
+});
+
+// 10.8. 保護者パスワードの更新
+app.put('/api/parent-password', (req, res) => {
+  const db = readDB();
+  const { newPassword, currentPassword } = req.body;
+  if (!newPassword || !String(newPassword).trim()) {
+    return res.status(400).json({ error: '新しいパスワードが必要です。' });
+  }
+  if (currentPassword) {
+    const currentHash = hashPassword(currentPassword);
+    const targetHash = db.parentPasswordHash || DEFAULT_PARENT_PASSWORD_HASH;
+    if (currentHash !== targetHash) {
+      return res.status(401).json({ error: '現在のパスワードが正しくありません。' });
+    }
+  }
+  db.parentPasswordHash = hashPassword(newPassword);
+  writeDB(db);
+  res.json({ success: true });
 });
 
 

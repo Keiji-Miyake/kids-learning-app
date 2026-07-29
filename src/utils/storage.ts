@@ -1,4 +1,4 @@
-import type { UserProfile, UserStats, ReviewItem, DailyReport, Subject } from '../types';
+import type { UserProfile, UserStats, ReviewItem, DailyReport, Subject, DailyGoal } from '../types';
 
 const PROFILES_KEY = 'kids_learnquest_profiles_list';
 const ACTIVE_PROFILE_KEY = 'kids_learnquest_active_profile_id';
@@ -43,41 +43,135 @@ export const storage = {
       const serverProfiles: UserProfile[] = await res.json();
       
       if (serverProfiles && serverProfiles.length > 0) {
-        // 各プロファイルの進捗データ（stats, reviews, reports）も同期取得
+        // ローカルストレージにのみ存在する未同期プロファイルがあればサーバーへ自動送信してマージ保護
+        const localProfiles = storage.getProfiles();
+        const unsyncedLocal = localProfiles.filter(lp => !serverProfiles.some(sp => sp.id === lp.id));
+
+        if (unsyncedLocal.length > 0) {
+          for (const newP of unsyncedLocal) {
+            try {
+              await fetch('/api/profiles', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newP)
+              });
+              if (newP.stats) {
+                await fetch(`/api/stats/${newP.id}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(newP.stats)
+                });
+              }
+              serverProfiles.push(newP);
+            } catch (err) {
+              console.warn("ローカルプロファイルのサーバー自動マージ失敗:", err);
+            }
+          }
+        }
+
+        // 各プロファイルの進捗データ（stats, reviews, reports）も同期取得し、Localと安全マージ
         const updatedProfiles = await Promise.all(
           serverProfiles.map(async (p) => {
+            const localP = localProfiles.find(lp => lp.id === p.id);
+            const localStatsStr = localStorage.getItem(`kids_learnquest_stats_${p.id}`);
+            const localStats: UserStats | null = localStatsStr ? JSON.parse(localStatsStr) : (localP?.stats || null);
+
             // ステータス取得
             const statsRes = await fetch(`/api/stats/${p.id}`);
-            const stats = statsRes.ok ? await statsRes.json() : null;
-            const finalStats = stats || createInitialStats();
+            const serverStats: UserStats | null = statsRes.ok ? await statsRes.json() : null;
+
+            // 🌟 レベル・Exp・コイン・所持アイテム等の「最高進捗」を完全保護・マージ
+            const finalStats: UserStats = {
+              level: Math.max(serverStats?.level || 1, localStats?.level || 1),
+              exp: Math.max(serverStats?.exp || 0, localStats?.exp || 0),
+              nextLevelExp: Math.max(serverStats?.nextLevelExp || 100, localStats?.nextLevelExp || 100),
+              coins: Math.max(serverStats?.coins || 50, localStats?.coins || 50),
+              streak: Math.max(serverStats?.streak || 0, localStats?.streak || 0),
+              lastActiveDate: serverStats?.lastActiveDate || localStats?.lastActiveDate || null,
+              unlockedBadges: Array.from(new Set([...(serverStats?.unlockedBadges || []), ...(localStats?.unlockedBadges || [])])),
+              equippedAvatar: localStats?.equippedAvatar || serverStats?.equippedAvatar || {
+                base: 'base-boy',
+                hat: 'hat-none',
+                accessory: 'acc-none',
+                companion: 'comp-none'
+              },
+              ownedItems: Array.from(new Set([...(serverStats?.ownedItems || []), ...(localStats?.ownedItems || [])]))
+            };
             
-            // 苦手ノート取得
+            // 苦手ノート取得・マージ
             const reviewsRes = await fetch(`/api/reviews/${p.id}`);
-            const reviews = reviewsRes.ok ? await reviewsRes.json() : [];
+            const serverReviews: ReviewItem[] = reviewsRes.ok ? await reviewsRes.json() : [];
+            const localReviewsStr = localStorage.getItem(`kids_learnquest_review_${p.id}`);
+            const localReviews: ReviewItem[] = localReviewsStr ? JSON.parse(localReviewsStr) : [];
+            const mergedReviews = [...serverReviews];
+            localReviews.forEach(lr => {
+              if (!mergedReviews.some(sr => sr.questionId === lr.questionId)) {
+                mergedReviews.push(lr);
+              }
+            });
             
-            // レポート取得
+            // レポート取得・マージ
             const reportsRes = await fetch(`/api/reports/${p.id}`);
-            const reports = reportsRes.ok ? await reportsRes.json() : [];
+            const serverReports: DailyReport[] = reportsRes.ok ? await reportsRes.json() : [];
+            const localReportsStr = localStorage.getItem(`kids_learnquest_reports_${p.id}`);
+            const localReports: DailyReport[] = localReportsStr ? JSON.parse(localReportsStr) : [];
+            const mergedReports = [...serverReports];
+            localReports.forEach(lr => {
+              if (!mergedReports.some(sr => sr.date === lr.date)) {
+                mergedReports.push(lr);
+              }
+            });
 
             // LocalStorage に即時キャッシュ保存
             localStorage.setItem(`kids_learnquest_stats_${p.id}`, JSON.stringify(finalStats));
-            localStorage.setItem(`kids_learnquest_review_${p.id}`, JSON.stringify(reviews));
-            localStorage.setItem(`kids_learnquest_reports_${p.id}`, JSON.stringify(reports));
+            localStorage.setItem(`kids_learnquest_review_${p.id}`, JSON.stringify(mergedReviews));
+            localStorage.setItem(`kids_learnquest_reports_${p.id}`, JSON.stringify(mergedReports));
+
+            // サーバー側へ最新の最高進捗データを逆同期バックアップ保存
+            fetch(`/api/stats/${p.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(finalStats)
+            }).catch(() => {});
+
+            // ノルマ設定(dailyGoal)はカスタマイズ値を最優先保護（ローカル ➔ サーバー ➔ デフォルト）
+            const mergedGoal: DailyGoal = {
+              ...(defaultDailyGoal),
+              ...(p.dailyGoal || {}),
+              ...(localP?.dailyGoal || {})
+            };
 
             return {
               ...p,
-              dailyGoal: p.dailyGoal || defaultDailyGoal,
+              name: localP?.name || p.name,
+              avatarEmoji: localP?.avatarEmoji || p.avatarEmoji,
+              pin: localP?.pin || p.pin,
+              grade: localP?.grade || p.grade,
+              dailyGoal: mergedGoal,
               stats: finalStats
             };
           })
         );
 
-        localStorage.setItem(PROFILES_KEY, JSON.stringify(updatedProfiles));
+        // 🌟 プロファイルの重複排除（同名または同IDの重複プロファイルを一貫排除）
+        const uniqueProfiles: UserProfile[] = [];
+        const seenNames = new Set<string>();
+        const seenIds = new Set<string>();
+
+        for (const prof of updatedProfiles) {
+          if (!seenIds.has(prof.id) && !seenNames.has(prof.name)) {
+            seenIds.add(prof.id);
+            seenNames.add(prof.name);
+            uniqueProfiles.push(prof);
+          }
+        }
+
+        localStorage.setItem(PROFILES_KEY, JSON.stringify(uniqueProfiles));
         
         // アクティブIDの保証
         const activeId = localStorage.getItem(ACTIVE_PROFILE_KEY);
-        if (!activeId || !updatedProfiles.some(p => p.id === activeId)) {
-          localStorage.setItem(ACTIVE_PROFILE_KEY, updatedProfiles[0].id);
+        if (!activeId || !uniqueProfiles.some(p => p.id === activeId)) {
+          localStorage.setItem(ACTIVE_PROFILE_KEY, uniqueProfiles[0].id);
         }
         console.log("[Database Sync] 同期に成功しました！");
       }
@@ -382,16 +476,49 @@ export const storage = {
     return saved || 'parent';
   },
 
-  // 保護者マスターパスワードの更新
+  // 保護者マスターパスワードの更新 (ローカル保存 ＋ サーバーDB永続化)
   setParentPassword(newPassword: string): void {
     if (!newPassword || !newPassword.trim()) return;
-    localStorage.setItem(PARENT_PASSWORD_KEY, newPassword.trim());
+    const trimmed = newPassword.trim();
+    localStorage.setItem(PARENT_PASSWORD_KEY, trimmed);
+
+    // サーバーDBへ非同期送信（SHA-256ハッシュ化して保存される）
+    if (typeof window !== 'undefined' || process.env.NODE_ENV === 'test') {
+      try {
+        fetch('/api/parent-password', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ newPassword: trimmed })
+        }).catch(() => { /* オフライン/テスト時の無効URLを無視 */ });
+      } catch {
+        /* 無効URL等を安全にキャッチ */
+      }
+    }
   },
 
-  // 保護者マスターパスワードの検証
+  // 保護者マスターパスワードの検証 (同期)
   verifyParentPassword(inputPassword: string): boolean {
     const current = storage.getParentPassword();
     return current === inputPassword.trim();
+  },
+
+  // 保護者マスターパスワードの検証 (非同期 / サーバーDB照合対応)
+  async verifyParentPasswordAsync(inputPassword: string): Promise<boolean> {
+    const trimmed = inputPassword.trim();
+    try {
+      const res = await fetch('/api/parent-password/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: trimmed })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return !!data.valid;
+      }
+    } catch {
+      // ネットワーク接続エラー・オフライン時はローカルデータでフォールバック検証
+    }
+    return this.verifyParentPassword(trimmed);
   }
 };
 

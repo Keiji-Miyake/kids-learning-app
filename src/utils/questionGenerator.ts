@@ -8,8 +8,39 @@ const shuffle = <T>(array: T[]): T[] => {
   return [...array].sort(() => Math.random() - 0.5);
 };
 
-// 🌟 選択された教科・学年・単元名に応じた高機能動的問題生成エンジン
-export const generateDynamicQuestion = (subject: Subject, grade: number, unitName?: string): Question => {
+// 🌟 選択肢がすべてユニーク（重複なし）であることを強制・保証する安全関数
+const ensureUniqueOptions = (options: string[], correctAnswer: string, subject: Subject): string[] => {
+  const uniqueSet = new Set<string>();
+  // 正解を必ず一番に入れる
+  uniqueSet.add(correctAnswer);
+  options.forEach(opt => uniqueSet.add(opt));
+
+  const uniqueArr = Array.from(uniqueSet);
+
+  const fallbackPools: Record<Subject, string[]> = {
+    math: ['0', '1', '2', '5', '10', '100', '-1', 'x = 0', 'y = 0'],
+    japanese: ['漢字', '言葉', '読み方', '文法', 'ことわざ'],
+    science: ['水', '空気', '酸素', '二酸化炭素', 'エネルギー', '細胞'],
+    social: ['日本', '東京', '歴史', '憲法', '世界'],
+    english: ['apple', 'book', 'English', 'Japan', 'student']
+  };
+
+  const pool = fallbackPools[subject] || ['選択肢A', '選択肢B', '選択肢C', '選択肢D'];
+  let counter = 1;
+
+  while (uniqueArr.length < 4) {
+    const fallback = `${pool[(counter - 1) % pool.length]} (${counter})`;
+    if (!uniqueArr.includes(fallback)) {
+      uniqueArr.push(fallback);
+    }
+    counter++;
+  }
+
+  return shuffle(uniqueArr.slice(0, 4));
+};
+
+// 内部用の動的問題生成関数
+const generateRawQuestion = (subject: Subject, grade: number, unitName?: string): Question => {
   const timestamp = Date.now() + Math.floor(Math.random() * 100000);
   const uName = unitName || '';
 
@@ -23,13 +54,13 @@ export const generateDynamicQuestion = (subject: Subject, grade: number, unitNam
       if (a === 0) return generateDynamicQuestion('math', grade, '一次関数');
       const b = getRandomInt(-6, 8);
       const bStr = b >= 0 ? `＋ ${b}` : `- ${Math.abs(b)}`;
-      const options = shuffle([`変化の割合: ${a}`, `変化の割合: ${b}`, `変化の割合: ${a + 1}`, `変化の割合: ${-a}`]);
+      const rawOptions = [`変化の割合: ${a}`, `変化の割合: ${b}`, `変化の割合: ${a + 1}`, `変化の割合: ${-a}`];
       return {
         id: `dyn-func1-${timestamp}`,
         subject: 'math',
         grade,
         questionText: `一次関数 「y = ${a}x ${bStr}」 の変化の割合（傾き）を求めなさい。`,
-        options,
+        options: ensureUniqueOptions(rawOptions, `変化の割合: ${a}`, 'math'),
         correctAnswer: `変化の割合: ${a}`,
         explanation: `y = ax + b において、変化の割合（傾き）は x の係数 a であるため、${a} です。`
       };
@@ -41,13 +72,18 @@ export const generateDynamicQuestion = (subject: Subject, grade: number, unitNam
       const yVal = getRandomInt(1, 5);
       const c1 = xVal + yVal;
       const c2 = 2 * xVal + yVal;
-      const options = shuffle([`x = ${xVal}, y = ${yVal}`, `x = ${xVal + 1}, y = ${yVal}`, `x = ${xVal}, y = ${yVal + 2}`, `x = ${yVal}, y = ${xVal}`]);
+      const rawOptions = [
+        `x = ${xVal}, y = ${yVal}`,
+        `x = ${xVal + 1}, y = ${yVal + 2}`,
+        `x = ${xVal + 2}, y = ${yVal + 1}`,
+        `x = ${yVal + 3}, y = ${xVal}`
+      ];
       return {
         id: `dyn-sys-eq-${timestamp}`,
         subject: 'math',
         grade,
         questionText: `連立方程式 「x ＋ y = ${c1} ,  2x ＋ y = ${c2}」 を解きなさい。`,
-        options,
+        options: ensureUniqueOptions(rawOptions, `x = ${xVal}, y = ${yVal}`, 'math'),
         correctAnswer: `x = ${xVal}, y = ${yVal}`,
         explanation: `下の式から上の式を引くと x = ${c2 - c1} = ${xVal}。よって y = ${yVal} です。`
       };
@@ -236,7 +272,7 @@ export const generateDynamicQuestion = (subject: Subject, grade: number, unitNam
       subject,
       grade,
       questionText: target.q,
-      options: shuffle([target.a, ...target.w]),
+      options: ensureUniqueOptions([target.a, ...target.w], target.a, 'science'),
       correctAnswer: target.a,
       explanation: `正解は 「${target.a}」 です。`
     };
@@ -255,7 +291,7 @@ export const generateDynamicQuestion = (subject: Subject, grade: number, unitNam
         subject: 'social',
         grade,
         questionText: `時差計算：2つの都市の経度差が ${lonDiff}° あるとき、時差は何時間になるかな？ (15° = 1時間)`,
-        options,
+        options: ensureUniqueOptions(options, `${hours}時間`, 'social'),
         correctAnswer: `${hours}時間`,
         explanation: `地球は15度で1時間の時差が生じるため、${lonDiff}° ÷ 15 = ${hours}時間 です。`
       };
@@ -273,7 +309,7 @@ export const generateDynamicQuestion = (subject: Subject, grade: number, unitNam
       subject,
       grade,
       questionText: target.q,
-      options: shuffle([target.a, ...target.w]),
+      options: ensureUniqueOptions([target.a, ...target.w], target.a, 'social'),
       correctAnswer: target.a,
       explanation: `正解は 「${target.a}」 です。`
     };
@@ -344,7 +380,7 @@ export const generateDynamicQuestion = (subject: Subject, grade: number, unitNam
   // ==========================================
   const jpDB = [
     { q: '「油断大敵」の意味として正しいものはどれかな？', a: '気を許すと大変な失敗をするということ', w: ['油を大量に使うこと', '敵と仲良くすること', '大声を出すこと'] },
-    { q: '「温故知新」の読み方はどれかな？', a: 'おんこちしん', w: ['おんこちしん', 'おんふるちしん', 'ぬくもりちしん'] },
+    { q: '「温故知新」の読み方はどれかな？', a: 'おんこちしん', w: ['おんこちちん', 'おんふるちしん', 'ぬくもりちしん'] },
     { q: '漢字「休」の部首（へん）は何かな？', a: 'にんべん（イ）', w: ['きへん（木）', 'さんずい（氵）', 'くさかんむり（艹）'] }
   ];
   const targetJp = jpDB[getRandomInt(0, jpDB.length - 1)];
@@ -353,8 +389,17 @@ export const generateDynamicQuestion = (subject: Subject, grade: number, unitNam
     subject: 'japanese',
     grade,
     questionText: targetJp.q,
-    options: shuffle([targetJp.a, ...targetJp.w]),
+    options: ensureUniqueOptions([targetJp.a, ...targetJp.w], targetJp.a, 'japanese'),
     correctAnswer: targetJp.a,
     explanation: `正解は 「${targetJp.a}」 です。`
+  };
+};
+
+// 🌟 選択された教科・学年・単元名に応じた高機能動的問題生成エンジン（すべての選択肢が重複ゼロであることを完全保証）
+export const generateDynamicQuestion = (subject: Subject, grade: number, unitName?: string): Question => {
+  const rawQuestion = generateRawQuestion(subject, grade, unitName);
+  return {
+    ...rawQuestion,
+    options: ensureUniqueOptions(rawQuestion.options, rawQuestion.correctAnswer, subject)
   };
 };

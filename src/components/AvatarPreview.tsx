@@ -26,11 +26,13 @@ export const AvatarPreview: React.FC<AvatarPreviewProps> = ({
 
   // ショップ/コレクションで装備中のベースアイテムを取得
   const equippedBaseItem = shopItems.find(i => i.id === equipped?.base);
+  const isDefaultBase = !equipped?.base || equipped.base === 'base-boy' || equipped.base === 'base-girl';
   
-  // 装備アイテムのベース絵文字を最優先にし、未指定の場合のみプロファイル絵文字を使用
-  const baseEmoji = (equippedBaseItem && equippedBaseItem.emoji) 
-    ? equippedBaseItem.emoji 
-    : (profileEmoji || '🧑‍🚀');
+  // プロファイルアイコン(profileEmoji)がある場合は初期・デフォルトアバターにおいてそれを優先表示
+  // ショップで特別なアバター（ロボ・ネコ等）を装備した場合のみそちらを表示
+  const baseEmoji = (profileEmoji && isDefaultBase)
+    ? profileEmoji
+    : (equippedBaseItem?.emoji || profileEmoji || '🧑‍🚀');
 
   const hatEmoji = getEmoji('hat');
   const accessoryEmoji = getEmoji('accessory');
