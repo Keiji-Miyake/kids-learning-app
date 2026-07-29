@@ -84,11 +84,25 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onClose }) => 
 
   useEffect(() => {
     if (targetProfile) {
+      setGoalType(targetProfile.dailyGoal?.goalType || 'total_count');
       setTargetQuestions(targetProfile.dailyGoal?.targetQuestions || 5);
       setTargetMinutes(targetProfile.dailyGoal?.targetMinutes || 10);
       setRewardText(targetProfile.dailyGoal?.rewardText || '🎮 ゲーム30分OK！');
+      setTargetSubject(targetProfile.dailyGoal?.targetSubject || 'all');
+      setTargetUnitName(targetProfile.dailyGoal?.targetUnitName || 'all');
+      if (targetProfile.dailyGoal?.subjectGoals) {
+        setSubjectGoals(targetProfile.dailyGoal.subjectGoals);
+      } else {
+        setSubjectGoals({
+          math: { targetQuestions: 3, targetMinutes: 5 },
+          japanese: { targetQuestions: 3, targetMinutes: 5 },
+          science: { targetQuestions: 0, targetMinutes: 0 },
+          social: { targetQuestions: 0, targetMinutes: 0 },
+          english: { targetQuestions: 0, targetMinutes: 0 }
+        });
+      }
     }
-  }, [selectedProfileId]);
+  }, [selectedProfileId, targetProfile]);
 
   const handleSaveGoal = (e: React.FormEvent) => {
     e.preventDefault();
