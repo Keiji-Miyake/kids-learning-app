@@ -63,19 +63,34 @@ app.post('/api/profiles', (req, res) => {
   const db = readDB();
   const newProfile = req.body; // { id, name, avatarEmoji, grade, pin, stats }
   
-  // プロファイル一覧に追加
-  db.profiles.push({
-    id: newProfile.id,
-    name: newProfile.name,
-    avatarEmoji: newProfile.avatarEmoji,
-    grade: newProfile.grade,
-    pin: newProfile.pin
-  });
-
-  // 初期ステータスやセーブデータを初期化
-  db.stats[newProfile.id] = newProfile.stats;
-  db.reviews[newProfile.id] = [];
-  db.reports[newProfile.id] = [];
+  // すでに同名または同IDのプロファイルが存在するかチェック
+  const existingIdx = db.profiles.findIndex(p => p.id === newProfile.id || p.name === newProfile.name);
+  if (existingIdx !== -1) {
+    db.profiles[existingIdx] = {
+      id: db.profiles[existingIdx].id,
+      name: newProfile.name,
+      avatarEmoji: newProfile.avatarEmoji,
+      grade: newProfile.grade,
+      pin: newProfile.pin,
+      dailyGoal: newProfile.dailyGoal || db.profiles[existingIdx].dailyGoal
+    };
+    if (newProfile.stats) {
+      db.stats[db.profiles[existingIdx].id] = newProfile.stats;
+    }
+  } else {
+    // 新規プロファイル一覧に追加
+    db.profiles.push({
+      id: newProfile.id,
+      name: newProfile.name,
+      avatarEmoji: newProfile.avatarEmoji,
+      grade: newProfile.grade,
+      pin: newProfile.pin,
+      dailyGoal: newProfile.dailyGoal
+    });
+    db.stats[newProfile.id] = newProfile.stats;
+    db.reviews[newProfile.id] = [];
+    db.reports[newProfile.id] = [];
+  }
 
   writeDB(db);
   res.json({ success: true, profile: newProfile });
@@ -93,7 +108,8 @@ app.put('/api/profiles', (req, res) => {
       name: updated.name,
       avatarEmoji: updated.avatarEmoji,
       grade: updated.grade,
-      pin: updated.pin
+      pin: updated.pin,
+      dailyGoal: updated.dailyGoal || db.profiles[idx].dailyGoal
     };
     writeDB(db);
     res.json({ success: true });

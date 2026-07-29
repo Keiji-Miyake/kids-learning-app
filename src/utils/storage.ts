@@ -43,30 +43,104 @@ export const storage = {
       const serverProfiles: UserProfile[] = await res.json();
       
       if (serverProfiles && serverProfiles.length > 0) {
-        // 各プロファイルの進捗データ（stats, reviews, reports）も同期取得
+        // ローカルストレージにのみ存在する未同期プロファイルがあればサーバーへ自動送信
+        const localProfiles = storage.getProfiles();
+        const unsyncedLocal = localProfiles.filter(lp => !serverProfiles.some(sp => sp.id === lp.id));
+
+        if (unsyncedLocal.length > 0) {
+          for (const newP of unsyncedLocal) {
+            try {
+              await fetch('/api/profiles', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newP)
+              });
+              if (newP.stats) {
+                await fetch(`/api/stats/${newP.id}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(newP.stats)
+                });
+              }
+              serverProfiles.push(newP);
+            } catch (err) {
+              console.warn("ローカルプロファイルのサーバー自動マージ失敗:", err);
+            }
+          }
+        }
+
+        // 各プロファイルの進捗データ（stats, reviews, reports）も同期取得し、Localと安全マージ
         const updatedProfiles = await Promise.all(
           serverProfiles.map(async (p) => {
+            const localP = localProfiles.find(lp => lp.id === p.id);
+            const localStatsStr = localStorage.getItem(`kids_learnquest_stats_${p.id}`);
+            const localStats: UserStats | null = localStatsStr ? JSON.parse(localStatsStr) : (localP?.stats || null);
+
             // ステータス取得
             const statsRes = await fetch(`/api/stats/${p.id}`);
-            const stats = statsRes.ok ? await statsRes.json() : null;
-            const finalStats = stats || createInitialStats();
+            const serverStats: UserStats | null = statsRes.ok ? await statsRes.json() : null;
+
+            // 🌟 レベル・Exp・コイン・所持アイテム等の「最高進捗」を完全保護・マージ
+            const finalStats: UserStats = {
+              level: Math.max(serverStats?.level || 1, localStats?.level || 1),
+              exp: Math.max(serverStats?.exp || 0, localStats?.exp || 0),
+              nextLevelExp: Math.max(serverStats?.nextLevelExp || 100, localStats?.nextLevelExp || 100),
+              coins: Math.max(serverStats?.coins || 50, localStats?.coins || 50),
+              streak: Math.max(serverStats?.streak || 0, localStats?.streak || 0),
+              lastActiveDate: serverStats?.lastActiveDate || localStats?.lastActiveDate || null,
+              unlockedBadges: Array.from(new Set([...(serverStats?.unlockedBadges || []), ...(localStats?.unlockedBadges || [])])),
+              equippedAvatar: localStats?.equippedAvatar || serverStats?.equippedAvatar || {
+                base: 'base-boy',
+                hat: 'hat-none',
+                accessory: 'acc-none',
+                companion: 'comp-none'
+              },
+              ownedItems: Array.from(new Set([...(serverStats?.ownedItems || []), ...(localStats?.ownedItems || [])]))
+            };
             
-            // 苦手ノート取得
+            // 苦手ノート取得・マージ
             const reviewsRes = await fetch(`/api/reviews/${p.id}`);
-            const reviews = reviewsRes.ok ? await reviewsRes.json() : [];
+            const serverReviews: ReviewItem[] = reviewsRes.ok ? await reviewsRes.json() : [];
+            const localReviewsStr = localStorage.getItem(`kids_learnquest_review_${p.id}`);
+            const localReviews: ReviewItem[] = localReviewsStr ? JSON.parse(localReviewsStr) : [];
+            const mergedReviews = [...serverReviews];
+            localReviews.forEach(lr => {
+              if (!mergedReviews.some(sr => sr.questionId === lr.questionId)) {
+                mergedReviews.push(lr);
+              }
+            });
             
-            // レポート取得
+            // レポート取得・マージ
             const reportsRes = await fetch(`/api/reports/${p.id}`);
-            const reports = reportsRes.ok ? await reportsRes.json() : [];
+            const serverReports: DailyReport[] = reportsRes.ok ? await reportsRes.json() : [];
+            const localReportsStr = localStorage.getItem(`kids_learnquest_reports_${p.id}`);
+            const localReports: DailyReport[] = localReportsStr ? JSON.parse(localReportsStr) : [];
+            const mergedReports = [...serverReports];
+            localReports.forEach(lr => {
+              if (!mergedReports.some(sr => sr.date === lr.date)) {
+                mergedReports.push(lr);
+              }
+            });
 
             // LocalStorage に即時キャッシュ保存
             localStorage.setItem(`kids_learnquest_stats_${p.id}`, JSON.stringify(finalStats));
-            localStorage.setItem(`kids_learnquest_review_${p.id}`, JSON.stringify(reviews));
-            localStorage.setItem(`kids_learnquest_reports_${p.id}`, JSON.stringify(reports));
+            localStorage.setItem(`kids_learnquest_review_${p.id}`, JSON.stringify(mergedReviews));
+            localStorage.setItem(`kids_learnquest_reports_${p.id}`, JSON.stringify(mergedReports));
+
+            // 🎯 ノルマ設定(dailyGoal)は保護者変更のサーバー最新値を最優先（デフォルト ➔ ローカル ➔ サーバー）
+            const mergedGoal: DailyGoal = {
+              ...(defaultDailyGoal),
+              ...(localP?.dailyGoal || {}),
+              ...(p.dailyGoal || {})
+            };
 
             return {
               ...p,
-              dailyGoal: p.dailyGoal || defaultDailyGoal,
+              name: p.name || localP?.name || '',
+              avatarEmoji: p.avatarEmoji || localP?.avatarEmoji || '🧑‍🚀',
+              pin: p.pin !== undefined ? p.pin : localP?.pin,
+              grade: p.grade || localP?.grade || 3,
+              dailyGoal: mergedGoal,
               stats: finalStats
             };
           })
