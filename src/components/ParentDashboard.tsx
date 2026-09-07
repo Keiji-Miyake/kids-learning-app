@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { storage } from '../utils/storage';
-import type { DailyReport, Subject, UserProfile, DailyGoal } from '../types';
+import type { DailyReport, Subject, UserProfile, DailyGoal, WeeklySchedule, DayOfWeek } from '../types';
 import { sound } from '../utils/sound';
-import { getGoalProgress } from '../utils/goalEvaluator';
+import { getGoalProgress, getEffectiveDailyGoal, DAY_OF_WEEK_LABELS } from '../utils/goalEvaluator';
 import { GoalSettingWizard } from './GoalSettingWizard';
+
 
 interface ParentDashboardProps {
   onClose: () => void;
@@ -64,12 +65,13 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onClose }) => 
     setTimeout(() => setPasswordChangeMsg(''), 3000);
   };
 
-  const handleSaveGoal = (updatedGoal: DailyGoal) => {
+  const handleSaveGoal = (updatedGoal: DailyGoal, updatedSchedule?: WeeklySchedule) => {
     if (!targetProfile) return;
 
     const updatedProfile: UserProfile = {
       ...targetProfile,
-      dailyGoal: updatedGoal
+      dailyGoal: updatedGoal,
+      weeklySchedule: updatedSchedule !== undefined ? updatedSchedule : targetProfile.weeklySchedule
     };
 
     storage.updateProfile(updatedProfile);
@@ -80,7 +82,12 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onClose }) => 
   const reports: DailyReport[] = storage.getReports(selectedProfileId);
   const todayStr = new Date().toISOString().split('T')[0];
   const todayReport = reports.find(r => r.date === todayStr);
-  const goalProgress = getGoalProgress(targetProfile?.dailyGoal, todayReport);
+  const dayMap: DayOfWeek[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+  const currentDayKey = dayMap[new Date().getDay()];
+  const effectiveGoal = targetProfile ? getEffectiveDailyGoal(targetProfile) : undefined;
+  const goalProgress = getGoalProgress(effectiveGoal, todayReport);
+  const isWeeklyActive = targetProfile?.weeklySchedule?.enabled;
+
 
   // 統計データの計算
   const totalQuestions = reports.reduce((acc, r) => acc + r.questionsAttempted, 0);
@@ -275,7 +282,13 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onClose }) => 
                 {goalProgress.goalType === 'total_count' && '🎯 合計問題数重視'}
                 {goalProgress.goalType === 'total_time' && '⏱️ 合計時間重視'}
               </span>
+              {isWeeklyActive && (
+                <span style={{ fontSize: '11px', background: '#e0e7ff', color: '#3730a3', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>
+                  📅 {DAY_OF_WEEK_LABELS[currentDayKey]}の目標
+                </span>
+              )}
             </div>
+
             {goalProgress.isAchieved ? (
               <span style={{ background: '#16a34a', color: '#ffffff', padding: '4px 12px', borderRadius: '12px', fontWeight: 'bold', fontSize: '12px' }}>
                 🎉 本日のノルマ達成済み！

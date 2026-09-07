@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { getGoalProgress } from '../utils/goalEvaluator';
+import { getGoalProgress, getEffectiveDailyGoal } from '../utils/goalEvaluator';
+
 import type { DailyGoal, DailyReport } from '../types';
 
 describe('Goal Progress UI Helper & Display Tests', () => {
@@ -47,4 +48,53 @@ describe('Goal Progress UI Helper & Display Tests', () => {
     expect(progress.percent).toBe(70);
     expect(progress.currentLabel).toBe('7 / 10 分');
   });
+
+  it('calculates progress using getEffectiveDailyGoal with active weeklySchedule', () => {
+    const mondayGoal: DailyGoal = {
+      goalType: 'subject_specific',
+      targetQuestions: 10,
+      targetMinutes: 10,
+      rewardText: '月曜のご褒美',
+      subjectGoals: {
+        english: { targetQuestions: 10, targetMinutes: 5 }
+      }
+    };
+
+    const profile = {
+      id: 'p1',
+      name: 'ちひろ',
+      avatarEmoji: '👦',
+      dailyGoal: {
+        goalType: 'total_count' as const,
+        targetQuestions: 5,
+        targetMinutes: 10,
+        rewardText: '基本'
+      },
+      weeklySchedule: {
+        enabled: true,
+        days: {
+          mon: mondayGoal
+        }
+      },
+      stats: { level: 1, exp: 0, nextLevelExp: 100, coins: 0, unlockedBadges: [], equippedAvatar: 'default' }
+    };
+
+    const mondayDate = new Date('2026-09-07T12:00:00Z'); // Monday
+    const effective = getEffectiveDailyGoal(profile, mondayDate);
+    expect(effective).toEqual(mondayGoal);
+
+    const report: DailyReport = {
+      date: '2026-09-07',
+      questionsAttempted: 10,
+      questionsCorrect: 10,
+      subjectMinutes: { math: 0, japanese: 0, science: 0, social: 0, english: 5 },
+      subjectBreakdown: { english: { total: 10, correct: 10 } }
+    };
+
+    const progress = getGoalProgress(effective, report);
+    expect(progress.goalType).toBe('subject_specific');
+    expect(progress.isAchieved).toBe(true);
+    expect(progress.percent).toBe(100);
+  });
 });
+

@@ -21,7 +21,9 @@ import ExamScreen from './components/ExamScreen';
 
 import type { CurriculumUnit } from './data/curriculumLOD';
 import { markUnitCompleted } from './data/progress';
-import { checkIsDailyGoalAchieved, getGoalProgress } from './utils/goalEvaluator';
+import { checkIsDailyGoalAchieved, getGoalProgress, getEffectiveDailyGoal, DAY_OF_WEEK_LABELS } from './utils/goalEvaluator';
+import type { DayOfWeek } from './types';
+
 
 
 export const App: React.FC = () => {
@@ -153,7 +155,7 @@ export const App: React.FC = () => {
     const todayStr = new Date().toISOString().split('T')[0];
     const todayReportBefore = reportsBefore.find(r => r.date === todayStr);
 
-    const goal = activeProfile.dailyGoal;
+    const goal = getEffectiveDailyGoal(activeProfile);
     const isAchievedBefore = checkIsDailyGoalAchieved(goal, todayReportBefore);
 
     // アクティブなプロファイルに対して学習レポートおよびセッションを登録
@@ -162,6 +164,7 @@ export const App: React.FC = () => {
     const reportsAfter = storage.getReports(activeProfile.id);
     const todayReportAfter = reportsAfter.find(r => r.date === todayStr);
     const isAchievedAfter = checkIsDailyGoalAchieved(goal, todayReportAfter);
+
 
     // 選択された単元がある場合は進捗完了を記録
     if (activeUnit) {
@@ -242,9 +245,13 @@ export const App: React.FC = () => {
               const todayStr = new Date().toISOString().split('T')[0];
               const reports = storage.getReports(activeProfile.id);
               const todayReport = reports.find(r => r.date === todayStr);
-              const goal = activeProfile.dailyGoal || { targetQuestions: 5, targetMinutes: 10, rewardText: '🎮 ゲーム30分OK！' };
+              const goal = getEffectiveDailyGoal(activeProfile);
               const isGoalAchieved = checkIsDailyGoalAchieved(goal, todayReport);
               const goalProgress = getGoalProgress(goal, todayReport);
+
+              const dayMap: DayOfWeek[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+              const currentDayKey = dayMap[new Date().getDay()];
+              const isWeeklyActive = activeProfile.weeklySchedule?.enabled;
 
               const subjectLabels: Record<Subject, string> = {
                 math: '🧮 算数',
@@ -257,7 +264,7 @@ export const App: React.FC = () => {
               return (
                 <section className="daily-goal-card card" style={{ border: '2px solid #3b82f6', background: 'linear-gradient(135deg, #ffffff 0%, #eff6ff 100%)' }}>
                   <div className="goal-card-header">
-                    <div className="goal-card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div className="goal-card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                       <span className="goal-emoji">🎯</span>
                       <h3>きょうのノルマ ({goalProgress.currentLabel})</h3>
                       <span style={{ fontSize: '11px', background: '#dbeafe', color: '#1e40af', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>
@@ -265,7 +272,13 @@ export const App: React.FC = () => {
                         {goalProgress.goalType === 'total_count' && '🎯 全体問題数ノルマ'}
                         {goalProgress.goalType === 'total_time' && '⏱️ 全体時間ノルマ'}
                       </span>
+                      {isWeeklyActive && (
+                        <span style={{ fontSize: '11px', background: '#fef3c7', color: '#92400e', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>
+                          📅 {DAY_OF_WEEK_LABELS[currentDayKey]}
+                        </span>
+                      )}
                     </div>
+
                     {isGoalAchieved ? (
                       <span 
                         className="goal-badge achieved" 
