@@ -21,7 +21,7 @@ import ExamScreen from './components/ExamScreen';
 
 import type { CurriculumUnit } from './data/curriculumLOD';
 import { markUnitCompleted } from './data/progress';
-import { checkIsDailyGoalAchieved, getSubjectProgressSummary } from './utils/goalEvaluator';
+import { checkIsDailyGoalAchieved, getSubjectProgressSummary, getGoalProgress } from './utils/goalEvaluator';
 
 
 export const App: React.FC = () => {
@@ -242,10 +242,9 @@ export const App: React.FC = () => {
               const todayStr = new Date().toISOString().split('T')[0];
               const reports = storage.getReports(activeProfile.id);
               const todayReport = reports.find(r => r.date === todayStr);
-              const todayAttempted = todayReport ? todayReport.questionsAttempted : 0;
               const goal = activeProfile.dailyGoal || { targetQuestions: 5, targetMinutes: 10, rewardText: '🎮 ゲーム30分OK！' };
-              const goalTarget = goal.targetQuestions;
               const isGoalAchieved = checkIsDailyGoalAchieved(goal, todayReport);
+              const goalProgress = getGoalProgress(goal, todayReport);
 
               const subjectLabels: Record<Subject, string> = {
                 math: '🧮 算数',
@@ -255,17 +254,16 @@ export const App: React.FC = () => {
                 english: '🔤 英語'
               };
 
-              const goalTypeMode = goal.goalType || 'total_count';
-              const subjectSummary = getSubjectProgressSummary(goal, todayReport);
-
               return (
                 <section className="daily-goal-card card" style={{ border: '2px solid #3b82f6', background: 'linear-gradient(135deg, #ffffff 0%, #eff6ff 100%)' }}>
                   <div className="goal-card-header">
                     <div className="goal-card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span className="goal-emoji">🎯</span>
-                      <h3>きょうのノルマ ({todayAttempted} / {goalTarget} 問)</h3>
+                      <h3>きょうのノルマ ({goalProgress.currentLabel})</h3>
                       <span style={{ fontSize: '11px', background: '#dbeafe', color: '#1e40af', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>
-                        {goalTypeMode === 'subject_specific' ? '📚 教科別ノルマ' : '🎯 全体問題数ノルマ'}
+                        {goalProgress.goalType === 'subject_specific' && '📚 教科別ノルマ'}
+                        {goalProgress.goalType === 'total_count' && '🎯 全体問題数ノルマ'}
+                        {goalProgress.goalType === 'total_time' && '⏱️ 全体時間ノルマ'}
                       </span>
                     </div>
                     {isGoalAchieved ? (
@@ -279,7 +277,7 @@ export const App: React.FC = () => {
                       </span>
                     ) : (
                       <span className="goal-badge in-progress" style={{ background: '#f59e0b', color: '#fff', fontWeight: 'bold' }}>
-                        ⏳ あと {Math.max(0, goalTarget - todayAttempted)} 問！
+                        ⏳ 挑戦中（進捗: {goalProgress.percent}%）
                       </span>
                     )}
                   </div>
@@ -287,12 +285,12 @@ export const App: React.FC = () => {
                   <div className="goal-progress-bar">
                     <div 
                       className="goal-progress-fill" 
-                      style={{ width: `${Math.min(100, Math.floor((todayAttempted / goalTarget) * 100))}%` }}
+                      style={{ width: `${goalProgress.percent}%`, transition: 'width 0.4s ease' }}
                     ></div>
                   </div>
 
                   {/* 🌟 重点目標 ＆ 単元表示 */}
-                  {(goal.targetSubject && goal.targetSubject !== 'all' || goal.targetUnitName && goal.targetUnitName !== 'all') && (
+                  {((goal.targetSubject && goal.targetSubject !== 'all') || (goal.targetUnitName && goal.targetUnitName !== 'all')) && (
                     <div style={{ marginTop: '12px', background: '#dbeafe', padding: '8px 12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#1e40af', fontWeight: 'bold' }}>
                       <span>🔥 重点目標:</span>
                       {goal.targetSubject && goal.targetSubject !== 'all' && (
@@ -309,18 +307,15 @@ export const App: React.FC = () => {
                   )}
 
                   {/* 📚 教科ごとの個別ノルマ進捗 */}
-                  {goal.subjectGoals && Object.values(goal.subjectGoals).some(g => (g?.targetQuestions || 0) > 0) && (
+                  {goalProgress.subjects.length > 0 && (
                     <div style={{ marginTop: '12px' }}>
                       <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '6px' }}>📚 教科ごとの個別目標と今日のできた数:</div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                        {(['math', 'japanese', 'science', 'social', 'english'] as Subject[]).map(sub => {
-                          const info = subjectSummary[sub];
-                          if (!info || info.target === 0) return null;
-                          const isSubDone = info.isCompleted;
-
+                        {goalProgress.subjects.map(s => {
+                          const isSubDone = s.isCompleted;
                           return (
                             <span 
-                              key={sub}
+                              key={s.subject}
                               style={{ 
                                 background: isSubDone ? '#dcfce7' : '#f1f5f9', 
                                 color: isSubDone ? '#15803d' : '#334155',
@@ -334,7 +329,7 @@ export const App: React.FC = () => {
                                 gap: '4px'
                               }}
                             >
-                              {subjectLabels[sub]}: {info.current} / {info.target}問 {isSubDone ? '✅ 達成!' : ''}
+                              {s.label} {isSubDone ? '✅ 達成!' : ''}
                             </span>
                           );
                         })}

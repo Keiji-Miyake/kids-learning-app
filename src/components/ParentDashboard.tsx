@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { storage } from '../utils/storage';
 import type { DailyReport, Subject, UserProfile, DailyGoal } from '../types';
 import { sound } from '../utils/sound';
+import { getGoalProgress } from '../utils/goalEvaluator';
 import { GoalSettingWizard } from './GoalSettingWizard';
 
 interface ParentDashboardProps {
@@ -77,6 +78,9 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onClose }) => 
   };
 
   const reports: DailyReport[] = storage.getReports(selectedProfileId);
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayReport = reports.find(r => r.date === todayStr);
+  const goalProgress = getGoalProgress(targetProfile?.dailyGoal, todayReport);
 
   // 統計データの計算
   const totalQuestions = reports.reduce((acc, r) => acc + r.questionsAttempted, 0);
@@ -257,6 +261,71 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onClose }) => 
       <div className="dashboard-grid">
         {/* 🎯 1日のノルマ＆ご褒美設定ウィザード */}
         <GoalSettingWizard profile={targetProfile} onSave={handleSaveGoal} />
+
+        {/* 🌟 本日の目標進捗可視化カード */}
+        <div className="card" style={{ padding: '20px', borderRadius: '16px', background: '#f0fdf4', border: '2px solid #86efac', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '20px' }}>📈</span>
+              <strong style={{ fontSize: '16px', color: '#166534' }}>
+                本日の目標進捗（{goalProgress.currentLabel}）
+              </strong>
+              <span style={{ fontSize: '11px', background: '#dcfce7', color: '#15803d', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>
+                {goalProgress.goalType === 'subject_specific' && '📚 科目別目標'}
+                {goalProgress.goalType === 'total_count' && '🎯 合計問題数重視'}
+                {goalProgress.goalType === 'total_time' && '⏱️ 合計時間重視'}
+              </span>
+            </div>
+            {goalProgress.isAchieved ? (
+              <span style={{ background: '#16a34a', color: '#ffffff', padding: '4px 12px', borderRadius: '12px', fontWeight: 'bold', fontSize: '12px' }}>
+                🎉 本日のノルマ達成済み！
+              </span>
+            ) : (
+              <span style={{ background: '#f59e0b', color: '#ffffff', padding: '4px 12px', borderRadius: '12px', fontWeight: 'bold', fontSize: '12px' }}>
+                ⏳ 挑戦中（進捗: {goalProgress.percent}%）
+              </span>
+            )}
+          </div>
+
+          <div className="goal-progress-bar" style={{ height: '10px', background: '#dcfce7', borderRadius: '5px', overflow: 'hidden', marginBottom: '14px' }}>
+            <div
+              className="goal-progress-fill"
+              style={{ width: `${goalProgress.percent}%`, height: '100%', background: goalProgress.isAchieved ? '#16a34a' : '#3b82f6', transition: 'width 0.4s ease' }}
+            />
+          </div>
+
+          {goalProgress.subjects.length > 0 && (
+            <div>
+              <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#15803d', marginBottom: '8px' }}>
+                📚 科目ごとの進捗状況:
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
+                {goalProgress.subjects.map(sub => (
+                  <div
+                    key={sub.subject}
+                    style={{
+                      background: sub.isCompleted ? '#dcfce7' : '#ffffff',
+                      border: sub.isCompleted ? '1.5px solid #22c55e' : '1px solid #cbd5e1',
+                      padding: '8px 12px',
+                      borderRadius: '10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      fontSize: '12px'
+                    }}
+                  >
+                    <span style={{ fontWeight: 'bold', color: sub.isCompleted ? '#166534' : '#334155' }}>
+                      {sub.label}
+                    </span>
+                    <span style={{ fontSize: '11px', fontWeight: 'bold', color: sub.isCompleted ? '#16a34a' : '#64748b' }}>
+                      {sub.isCompleted ? '✅ 達成!' : '⏳ 進行中'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* サマリーカード */}
         <div className="summary-cards-row">
