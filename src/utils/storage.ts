@@ -1,4 +1,4 @@
-import type { UserProfile, UserStats, ReviewItem, DailyReport, Subject, DailyGoal, QuizSession } from '../types';
+import type { UserProfile, UserStats, ReviewItem, DailyReport, Subject, DailyGoal, QuizSession, SemesterSystem } from '../types';
 
 const PROFILES_KEY = 'kids_learnquest_profiles_list';
 const ACTIVE_PROFILE_KEY = 'kids_learnquest_active_profile_id';
@@ -164,6 +164,7 @@ export const storage = {
               pin: p.pin !== undefined ? p.pin : localP?.pin,
               grade: p.grade || localP?.grade || 3,
               dailyGoal: mergedGoal,
+              semesterSystem: p.semesterSystem || localP?.semesterSystem,
               stats: finalStats
             };
           })
@@ -242,8 +243,26 @@ export const storage = {
     return profile;
   },
 
+  // プロファイル一覧の保存
+  saveProfiles(profiles: UserProfile[]): void {
+    localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles));
+  },
+
+  // 指定IDのプロファイル取得
+  getProfile(id: string): UserProfile | undefined {
+    const profiles = this.getProfiles();
+    return profiles.find(p => p.id === id);
+  },
+
   // プロファイルの追加
-  createProfile(name: string, avatarEmoji: string, grade: number = 3, pin?: string): UserProfile {
+  addProfile(
+    name: string,
+    avatarEmoji: string,
+    grade: number = 3,
+    pin?: string,
+    dailyGoal?: DailyGoal,
+    semesterSystem?: SemesterSystem
+  ): UserProfile {
     const profiles = this.getProfiles();
     const newProfile: UserProfile = {
       id: `profile-${Date.now()}`,
@@ -251,6 +270,8 @@ export const storage = {
       avatarEmoji: avatarEmoji || '🧑‍🚀',
       grade: grade || 3,
       pin: pin ? pin.trim() : undefined,
+      dailyGoal: dailyGoal || { ...defaultDailyGoal },
+      semesterSystem,
       stats: createInitialStats()
     };
     
@@ -267,6 +288,18 @@ export const storage = {
     }).catch(err => console.warn("サーバー保存エラー:", err));
 
     return newProfile;
+  },
+
+  // プロファイルの作成 (addProfileのエイリアス/互換用)
+  createProfile(
+    name: string,
+    avatarEmoji: string,
+    grade: number = 3,
+    pin?: string,
+    dailyGoal?: DailyGoal,
+    semesterSystem?: SemesterSystem
+  ): UserProfile {
+    return this.addProfile(name, avatarEmoji, grade, pin, dailyGoal, semesterSystem);
   },
 
   // プロファイルの更新 (PIN設定・名前・学年変更など)
