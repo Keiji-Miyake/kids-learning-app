@@ -146,19 +146,37 @@ export const getGoalProgress = (
   goal?: DailyGoal,
   reports?: DailyReport[] | DailyReport
 ): GoalOverallProgress => {
-  const report = Array.isArray(reports) ? reports[0] : reports;
-  const mode: GoalType = goal?.goalType || 'total_count';
-  const isAchieved = checkIsDailyGoalAchieved(goal, report);
-
-  if (!goal || !report) {
+  if (!goal) {
     return {
-      goalType: mode,
+      goalType: 'total_count',
       percent: 0,
-      currentLabel: mode === 'total_time' ? '0 / 10 分' : '0 / 5 問',
+      currentLabel: '0 / 5 問',
       isAchieved: false,
       subjects: []
     };
   }
+
+  const rawReport = Array.isArray(reports) ? reports[0] : reports;
+  const todayStr = new Date().toISOString().split('T')[0];
+  const report: DailyReport = rawReport || {
+    date: todayStr,
+    totalQuestions: 0,
+    questionsAttempted: 0,
+    questionsCorrect: 0,
+    subjectBreakdown: {},
+    subjectMinutes: {
+      math: 0,
+      japanese: 0,
+      science: 0,
+      social: 0,
+      english: 0
+    },
+    sessions: []
+  };
+
+  const mode: GoalType = goal.goalType || 'total_count';
+  const isAchieved = checkIsDailyGoalAchieved(goal, report);
+
 
   const todayQuestions = report.totalQuestions !== undefined ? report.totalQuestions : (report.questionsAttempted || 0);
   const totalMinutes = report.subjectMinutes

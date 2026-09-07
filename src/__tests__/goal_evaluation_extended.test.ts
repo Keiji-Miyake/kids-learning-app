@@ -161,4 +161,51 @@ describe('Extended Daily Goal Evaluation Tests', () => {
     expect(subjectProgress.currentLabel).toBe('1 / 2 教科達成');
     expect(subjectProgress.subjects.length).toBe(2);
   });
+
+  it('getGoalProgress handles undefined or empty report gracefully for all goal types', () => {
+    // 1. subject_specific with no reports
+    const subjectGoal: DailyGoal = {
+      targetQuestions: 15,
+      targetMinutes: 10,
+      rewardText: 'ご褒美',
+      goalType: 'subject_specific',
+      subjectGoals: {
+        math: { targetQuestions: 5, targetMinutes: 5 },
+        japanese: { targetQuestions: 5, targetMinutes: 5 },
+        science: { targetQuestions: 5, targetMinutes: 5 },
+        social: { targetQuestions: 5, targetMinutes: 5 },
+        english: { targetQuestions: 5, targetMinutes: 5 }
+      }
+    };
+    const subjectProgress = getGoalProgress(subjectGoal, undefined);
+    expect(subjectProgress.goalType).toBe('subject_specific');
+    expect(subjectProgress.percent).toBe(0);
+    expect(subjectProgress.currentLabel).toBe('0 / 5 教科達成');
+    expect(subjectProgress.subjects.length).toBe(5);
+    expect(subjectProgress.subjects[0].currentQuestions).toBe(0);
+    expect(subjectProgress.subjects[0].targetQuestions).toBe(5);
+
+    // 2. total_count with no reports
+    const countGoal: DailyGoal = {
+      targetQuestions: 20,
+      targetMinutes: 10,
+      rewardText: 'ご褒美',
+      goalType: 'total_count'
+    };
+    const countProgress = getGoalProgress(countGoal, undefined);
+    expect(countProgress.currentLabel).toBe('0 / 20 問');
+    expect(countProgress.percent).toBe(0);
+
+    // 3. total_time with no reports
+    const timeGoal: DailyGoal = {
+      targetQuestions: 10,
+      targetMinutes: 30,
+      rewardText: 'ご褒美',
+      goalType: 'total_time'
+    };
+    const timeProgress = getGoalProgress(timeGoal, undefined);
+    expect(timeProgress.currentLabel).toBe('0 / 30 分');
+    expect(timeProgress.percent).toBe(0);
+  });
 });
+
