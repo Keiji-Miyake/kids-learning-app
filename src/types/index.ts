@@ -56,16 +56,20 @@ export interface WeeklySchedule {
   days?: Partial<Record<DayOfWeek, DailyGoal>>; // 曜日ごとの個別DailyGoal
 }
 
+export type SemesterSystem = '3-term' | '2-term';
+
 export interface UserProfile {
   id: string;
   name: string;
   avatarEmoji: string;
   grade?: number; // 1〜9 (小1〜中3) のデフォルト学年設定
   pin?: string; // 4桁のPINコード（暗証番号）によるアカウント保護
+  semesterSystem?: SemesterSystem; // 学期制設定 ('3-term' | '2-term')
   dailyGoal?: DailyGoal; // 保護者が設定した1日のノルマ＆ご褒美
   weeklySchedule?: WeeklySchedule; // 曜日別スケジュール設定
   stats: UserStats;
 }
+
 
 
 export interface ReviewItem {
