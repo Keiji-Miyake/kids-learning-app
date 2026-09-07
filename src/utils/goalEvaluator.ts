@@ -1,4 +1,4 @@
-import type { DailyGoal, DailyReport, GoalType, Subject } from '../types';
+import type { DailyGoal, DailyReport, GoalType, Subject, UserProfile, DayOfWeek } from '../types';
 
 export interface SubjectGoalSummary {
   current: number; // 既存互換用 (問題数)
@@ -246,3 +246,34 @@ export const getGoalProgress = (
     subjects: configuredSubjects
   };
 };
+
+export const DAY_OF_WEEK_LABELS: Record<DayOfWeek, string> = {
+  mon: '月曜日',
+  tue: '火曜日',
+  wed: '水曜日',
+  thu: '木曜日',
+  fri: '金曜日',
+  sat: '土曜日',
+  sun: '日曜日'
+};
+
+export const getEffectiveDailyGoal = (profile: UserProfile, targetDate?: Date): DailyGoal => {
+  const fallbackGoal: DailyGoal = {
+    targetQuestions: 5,
+    targetMinutes: 10,
+    rewardText: '🎮 ゲーム30分OK！',
+    goalType: 'total_count'
+  };
+
+  if (!profile.weeklySchedule?.enabled || !profile.weeklySchedule.days) {
+    return profile.dailyGoal || fallbackGoal;
+  }
+
+  const date = targetDate || new Date();
+  const dayIndex = date.getDay(); // 0: 日, 1: 月, 2: 火, 3: 水, 4: 木, 5: 金, 6: 土
+  const dayMap: DayOfWeek[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+  const todayKey = dayMap[dayIndex];
+
+  return profile.weeklySchedule.days[todayKey] || profile.dailyGoal || fallbackGoal;
+};
+
