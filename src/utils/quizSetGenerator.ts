@@ -7,21 +7,37 @@ export const generateUniqueQuizSet = (
   grade: number,
   count: number = 5,
   unitName?: string,
-  excludeIds: string[] = []
+  excludeIds: string[] = [],
+  excludeTexts: string[] = []
 ): Question[] => {
   const resultSet: Question[] = [];
-  const usedTexts = new Set<string>();
+  const usedTexts = new Set<string>(excludeTexts);
 
   const isStrictUnitMode = !!(unitName && unitName !== 'all');
 
-  // 単元一致判定キーの作成 (例: "平方根" -> ["平方根", "√", "ルート"])
+  // 単元一致判定キーワードの作成
   const getUnitKeywords = (u: string): string[] => {
-    if (u.includes('平方根') || u.includes('√')) return ['平方根', '√', 'ルート'];
-    if (u.includes('因数分解') || u.includes('展開')) return ['因数分解', '展開', '公式'];
-    if (u.includes('二次方程式')) return ['二次方程式', 'x²'];
-    if (u.includes('相似')) return ['相似'];
-    if (u.includes('三平方')) return ['三平方', 'ピタゴラス'];
-    return [u];
+    // 先頭の番号（"1. ", "2. " 等）を除去
+    const clean = u.replace(/^\d+\.\s*/, '').trim();
+
+    if (clean.includes('平方根')) return ['平方根', '√'];
+    if (clean.includes('因数分解') || clean.includes('多項式') || clean.includes('展開')) return ['因数分解', '多項式', '展開'];
+    if (clean.includes('二次方程式')) return ['二次方程式'];
+    if (clean.includes('相似')) return ['相似'];
+    if (clean.includes('三平方') || clean.includes('ピタゴラス')) return ['三平方', 'ピタゴラス'];
+    if (clean.includes('一次関数') || clean.includes('傾き')) return ['一次関数', '変化の割合', '傾き'];
+    if (clean.includes('連立方程式') || clean.includes('連立')) return ['連立方程式', '連立'];
+    if (clean.includes('オーム')) return ['オーム', '回路', '電流'];
+    if (clean.includes('時差')) return ['時差', '経度'];
+    if (clean.includes('関係代名詞')) return ['関係代名詞'];
+    if (clean.includes('現在完了')) return ['現在完了'];
+    if (clean.includes('地図記号')) return ['地図記号'];
+    if (clean.includes('たしざん')) return ['たしざん', 'たす', 'あわせる', '＋'];
+    if (clean.includes('ひきざん')) return ['ひきざん', 'ひく', 'のこり', '-'];
+    if (clean.includes('わり算') || clean.includes('あまり')) return ['わり算', '割', 'あまり', '÷'];
+    if (clean.includes('九九') || clean.includes('かけ算')) return ['九九', 'かけ算', '×'];
+
+    return [clean];
   };
 
   const unitKeywords = isStrictUnitMode ? getUnitKeywords(unitName) : [];
@@ -30,9 +46,13 @@ export const generateUniqueQuizSet = (
   let matchingFixed = fixedQuestions.filter(q => q.subject === subject && (grade ? q.grade === grade : true));
 
   if (isStrictUnitMode) {
-    matchingFixed = matchingFixed.filter(q => 
-      unitKeywords.some(kw => q.questionText.includes(kw) || q.explanation.includes(kw))
-    );
+    matchingFixed = matchingFixed.filter(q => {
+      // 特殊除外ルール: 平方根単元に二次方程式の問題が混入するのを防ぐ
+      if (unitName.includes('平方根') && (q.questionText.includes('二次方程式') || q.explanation.includes('二次方程式') || q.questionText.includes('解の公式'))) {
+        return false;
+      }
+      return unitKeywords.some(kw => q.questionText.includes(kw) || q.explanation.includes(kw));
+    });
   }
 
   const pool = [...matchingFixed].sort(() => Math.random() - 0.5);
@@ -41,55 +61,35 @@ export const generateUniqueQuizSet = (
   while (resultSet.length < count && attempts < 500) {
     attempts++;
 
-    // 単元モードの場合、単元連動の動的問題生成を100%優先
-    if (isStrictUnitMode) {
-      if (pool.length > 0 && attempts % 3 === 0) {
-        const candidate = pool.pop();
-        if (candidate && !usedTexts.has(candidate.questionText) && !excludeIds.includes(candidate.id)) {
-          usedTexts.add(candidate.questionText);
-          resultSet.push(candidate);
-          continue;
-        }
-      }
-      const dyn = generateDynamicQuestion(subject, grade, unitName);
-      if (!usedTexts.has(dyn.questionText) && !excludeIds.includes(dyn.id)) {
-        usedTexts.add(dyn.questionText);
-        resultSet.push(dyn);
+    // 固定問題プールからの抽出
+    if (pool.length > 0 && (!isStrictUnitMode || attempts % 2 === 0)) {
+      const candidate = pool.pop();
+      if (candidate && !usedTexts.has(candidate.questionText) && !excludeIds.includes(candidate.id)) {
+        usedTexts.add(candidate.questionText);
+        resultSet.push(candidate);
         continue;
       }
-    } else {
-      // 通常のランダムモード
-      if (pool.length > 0) {
-        const candidate = pool.pop();
-        if (candidate && !usedTexts.has(candidate.questionText) && !excludeIds.includes(candidate.id)) {
-          usedTexts.add(candidate.questionText);
-          resultSet.push(candidate);
-          continue;
-        }
-      }
-      const dyn = generateDynamicQuestion(subject, grade, unitName);
-      if (!usedTexts.has(dyn.questionText) && !excludeIds.includes(dyn.id)) {
-        usedTexts.add(dyn.questionText);
-        resultSet.push(dyn);
-      }
+    }
+
+    // 動的問題の生成
+    const dyn = generateDynamicQuestion(subject, grade, unitName);
+    if (!usedTexts.has(dyn.questionText) && !excludeIds.includes(dyn.id)) {
+      usedTexts.add(dyn.questionText);
+      resultSet.push(dyn);
     }
   }
 
-  // 万が一足りない場合の安全フォールバック補完（100%指定問題数を保証）
-  let fallbackCounter = 1;
-  while (resultSet.length < count) {
-    const dyn = generateDynamicQuestion(subject, grade, unitName);
-    const uniqueId = `${dyn.id}-v${fallbackCounter}`;
-    const uniqueText = `${dyn.questionText} 【第${fallbackCounter}問】`;
-    if (!usedTexts.has(uniqueText)) {
-      usedTexts.add(uniqueText);
-      resultSet.push({
-        ...dyn,
-        id: uniqueId,
-        questionText: uniqueText
-      });
+  // 万が一特定単元でユニーク数がまだ足りない場合の安全フォールバック
+  // （重複や水増しを行わず、同教科・同学年の問題生成からユニークな問題を充当）
+  let safeAttempts = 0;
+  while (resultSet.length < count && safeAttempts < 300) {
+    safeAttempts++;
+    // 単元指定を外して同学年・同教科の関連問題を動的生成
+    const dyn = generateDynamicQuestion(subject, grade);
+    if (!usedTexts.has(dyn.questionText) && !excludeIds.includes(dyn.id)) {
+      usedTexts.add(dyn.questionText);
+      resultSet.push(dyn);
     }
-    fallbackCounter++;
   }
 
   return resultSet;

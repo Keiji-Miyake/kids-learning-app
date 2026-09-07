@@ -115,8 +115,9 @@ export const App: React.FC = () => {
   };
 
 
-  // クイズで直前に解いた問題のIDキャッシュ (被り防止)
+  // クイズで直前に解いた問題のIDおよびテキストキャッシュ (被り防止)
   const [recentQuestionIds, setRecentQuestionIds] = useState<string[]>([]);
+  const [recentQuestionTexts, setRecentQuestionTexts] = useState<string[]>([]);
   const [activeUnit, setActiveUnit] = useState<CurriculumUnit | undefined>(undefined);
 
   const handleSelectSubject = (subject: Subject, grade: number, unit?: CurriculumUnit) => {
@@ -124,8 +125,9 @@ export const App: React.FC = () => {
     const unitName = unit ? unit.unitName : '';
 
     // 重複を100%排除した5問のユニーク問題セットを生成
-    const selected5 = generateUniqueQuizSet(subject, grade, 5, unitName, recentQuestionIds);
-    setRecentQuestionIds(selected5.map(q => q.id));
+    const selected5 = generateUniqueQuizSet(subject, grade, 5, unitName, recentQuestionIds, recentQuestionTexts);
+    setRecentQuestionIds(prev => [...prev.slice(-20), ...selected5.map(q => q.id)]);
+    setRecentQuestionTexts(prev => [...prev.slice(-20), ...selected5.map(q => q.questionText)]);
 
     setActiveQuestions(selected5);
     setActiveSubject(subject);
@@ -142,7 +144,9 @@ export const App: React.FC = () => {
     setActiveSubject(subject);
 
     // 10問の完全ユニーク本格単元テスト問題を生成
-    const examPool = generateUniqueQuizSet(subject, grade, 10, unit.unitName);
+    const examPool = generateUniqueQuizSet(subject, grade, 10, unit.unitName, recentQuestionIds, recentQuestionTexts);
+    setRecentQuestionIds(prev => [...prev.slice(-20), ...examPool.map(q => q.id)]);
+    setRecentQuestionTexts(prev => [...prev.slice(-20), ...examPool.map(q => q.questionText)]);
     setExamQuestions(examPool);
     setCurrentScreen('exam');
   };
