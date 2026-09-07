@@ -43,12 +43,33 @@ function readDB() {
   try {
     const content = fs.readFileSync(DB_FILE, 'utf-8');
     const data = JSON.parse(content);
+    if (!Array.isArray(data.profiles)) {
+      data.profiles = [
+        { id: 'profile-1', name: 'たろう', avatarEmoji: '👦', grade: 3, pin: undefined },
+        { id: 'profile-2', name: 'はなこ', avatarEmoji: '👧', grade: 5, pin: undefined },
+        { id: 'profile-3', name: 'じろう', avatarEmoji: '👶', grade: 1, pin: undefined }
+      ];
+    }
+    if (!data.stats) data.stats = {};
+    if (!data.reviews) data.reviews = {};
+    if (!data.reports) data.reports = {};
     if (!data.progress) data.progress = {};
     if (!data.parentPasswordHash) data.parentPasswordHash = DEFAULT_PARENT_PASSWORD_HASH;
     return data;
   } catch (err) {
     console.error("DB読み込みエラー、リセットします:", err);
-    return { parentPasswordHash: DEFAULT_PARENT_PASSWORD_HASH, profiles: [], stats: {}, reviews: {}, reports: {}, progress: {} };
+    return {
+      parentPasswordHash: DEFAULT_PARENT_PASSWORD_HASH,
+      profiles: [
+        { id: 'profile-1', name: 'たろう', avatarEmoji: '👦', grade: 3, pin: undefined },
+        { id: 'profile-2', name: 'はなこ', avatarEmoji: '👧', grade: 5, pin: undefined },
+        { id: 'profile-3', name: 'じろう', avatarEmoji: '👶', grade: 1, pin: undefined }
+      ],
+      stats: {},
+      reviews: {},
+      reports: {},
+      progress: {}
+    };
   }
 }
 

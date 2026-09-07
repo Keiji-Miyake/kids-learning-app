@@ -31,15 +31,22 @@ export interface UserStats {
   ownedItems: string[]; // 購入済みアイテムのIDリスト
 }
 
+export type GoalType = 'total_count' | 'total_time' | 'subject_specific';
+
+export interface SubjectGoal {
+  targetQuestions: number; // 例: 5問 (0は目標なし)
+  targetMinutes: number;   // 例: 10分 (0は目標なし)
+}
+
 // 1日のノルマ（目標）とご褒美の約束
 export interface DailyGoal {
   targetQuestions: number; // 例: 5問
   targetMinutes: number;   // 例: 10分
   rewardText: string;      // 例: "ゲーム30分OK！", "お小遣い50円GET！"
-  goalType?: 'total_count' | 'subject_specific'; // 🎯 ノルマ達成の判定基準モード ('total_count': 全体問題数, 'subject_specific': 教科ごと)
+  goalType?: GoalType;     // 🎯 ノルマ達成の判定基準モード ('total_count': 全体問題数, 'total_time': 全体時間, 'subject_specific': 教科ごと)
   targetSubject?: Subject | 'all'; // 特定対象科目
   targetUnitName?: string | 'all'; // 特定対象単元名
-  subjectGoals?: Partial<Record<Subject, { targetQuestions: number; targetMinutes: number }>>; // 教科別個別の目標
+  subjectGoals?: Partial<Record<Subject, SubjectGoal>>; // 教科別個別の目標
 }
 
 export interface UserProfile {
@@ -62,6 +69,14 @@ export interface ReviewItem {
   addedAt: string;
 }
 
+export interface QuizSession {
+  subject: Subject;
+  questionsAttempted: number;
+  questionsCorrect: number;
+  durationMinutes: number;
+  timestamp: string;
+}
+
 export interface DailyReport {
   date: string;
   subjectMinutes: Record<Subject, number>;
@@ -69,4 +84,5 @@ export interface DailyReport {
   questionsCorrect: number;
   totalQuestions?: number;
   subjectBreakdown?: Partial<Record<Subject, { total: number; correct?: number }>>;
+  sessions?: QuizSession[];
 }
