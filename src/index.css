@@ -2503,6 +2503,51 @@ body {
   font-size: 13px;
 }
 
+.roadmap-semester-toggle {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.roadmap-semester-toggle label {
+  font-size: 12px;
+  font-weight: 800;
+  color: #334155;
+  white-space: nowrap;
+}
+
+.semester-toggle-group {
+  display: inline-flex;
+  background: #f1f5f9;
+  padding: 3px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  gap: 2px;
+}
+
+.semester-toggle-btn {
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.semester-toggle-btn:hover {
+  color: #1e293b;
+}
+
+.semester-toggle-btn.active {
+  background: #3b82f6;
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(59, 130, 246, 0.35);
+}
+
 .roadmap-overall-progress {
   background: #eff6ff;
   border: 1px solid #bfdbfe;
@@ -2685,6 +2730,10 @@ body {
   }
 
   .roadmap-grade-select {
+    justify-content: flex-end;
+  }
+
+  .roadmap-semester-toggle {
     justify-content: flex-end;
   }
 

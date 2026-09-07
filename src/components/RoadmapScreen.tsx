@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import type { Subject, UserProfile } from '../types';
+import type { Subject, UserProfile, SemesterSystem } from '../types';
 import { sound } from '../utils/sound';
-import { getCurriculumUnits, type CurriculumUnit } from '../data/curriculumLOD';
+import { getCurriculumUnits, getDisplayTerm, type CurriculumUnit } from '../data/curriculumLOD';
 import { fetchCompletedUnits, getLocalCompletedUnits } from '../data/progress';
 
 export const calculateUnitStatus = (unitCode: string, completedUnits: string[]): 'mastered' | 'in-progress' | 'locked' => {
@@ -29,6 +29,9 @@ export const RoadmapScreen: React.FC<RoadmapScreenProps> = ({
   const [selectedSubject, setSelectedSubject] = useState<Subject>('math');
   const [selectedGrade, setSelectedGrade] = useState<number>(profile.grade || 3);
   const [completedUnits, setCompletedUnits] = useState<string[]>(() => getLocalCompletedUnits(profile.id));
+  const [viewSemesterSystem, setViewSemesterSystem] = useState<SemesterSystem>(
+    profile.semesterSystem || '3-term'
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -96,6 +99,26 @@ export const RoadmapScreen: React.FC<RoadmapScreenProps> = ({
               <option value={9}>中学3年</option>
             </select>
           </div>
+
+          <div className="roadmap-semester-toggle">
+            <label>学期表示：</label>
+            <div className="semester-toggle-group">
+              <button
+                type="button"
+                className={`semester-toggle-btn ${viewSemesterSystem === '3-term' ? 'active' : ''}`}
+                onClick={() => { sound.playClick(); setViewSemesterSystem('3-term'); }}
+              >
+                3学期制
+              </button>
+              <button
+                type="button"
+                className={`semester-toggle-btn ${viewSemesterSystem === '2-term' ? 'active' : ''}`}
+                onClick={() => { sound.playClick(); setViewSemesterSystem('2-term'); }}
+              >
+                2学期制
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* 全体達成度プログレスバー */}
@@ -128,7 +151,7 @@ export const RoadmapScreen: React.FC<RoadmapScreenProps> = ({
                   </div>
                   <div className="node-content">
                     <div className="node-header">
-                      <span className="node-term">{unit.term || '通年'}</span>
+                      <span className="node-term">{getDisplayTerm(unit, viewSemesterSystem)}</span>
                       <span className="node-code">LOD: {unit.code}</span>
                     </div>
                     <h4 className="node-title">{unit.unitName}</h4>
