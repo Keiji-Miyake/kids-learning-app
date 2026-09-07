@@ -21,7 +21,7 @@ import ExamScreen from './components/ExamScreen';
 
 import type { CurriculumUnit } from './data/curriculumLOD';
 import { markUnitCompleted } from './data/progress';
-import { checkIsDailyGoalAchieved, getSubjectProgressSummary, getGoalProgress } from './utils/goalEvaluator';
+import { checkIsDailyGoalAchieved, getGoalProgress } from './utils/goalEvaluator';
 
 
 export const App: React.FC = () => {

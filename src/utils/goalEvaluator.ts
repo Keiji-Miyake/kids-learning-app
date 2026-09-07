@@ -73,16 +73,6 @@ export const getSubjectProgressSummary = (
       isCompleted = currentMinutes >= targetMinutes;
     }
 
-    const item: SubjectGoalSummary = {
-      current: currentQuestions,
-      target: targetQuestions,
-      isCompleted,
-      currentQuestions,
-      targetQuestions,
-      currentMinutes,
-      targetMinutes
-    };
-
     // 既存テスト (toEqualで厳密一致を検証するテスト) との互換性のため、追加キーを非列挙に設定
     const compatItem = {
       current: currentQuestions,

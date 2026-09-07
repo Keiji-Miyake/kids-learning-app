@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 // @ts-ignore
 import app from '../../server.js';
-import type { GoalType, DailyGoal } from '../types';
+import type { DailyGoal } from '../types';
 
 describe('Goal types and Server persistence test', () => {
   it('should accept extended dailyGoal with goalType and subjectGoals targetMinutes', async () => {
