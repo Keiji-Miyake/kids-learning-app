@@ -156,8 +156,8 @@ export const App: React.FC = () => {
     const goal = activeProfile.dailyGoal;
     const isAchievedBefore = checkIsDailyGoalAchieved(goal, todayReportBefore);
 
-    // アクティブなプロファイルに対して学習レポートを登録
-    storage.addReportData(activeSubject, correctCount === totalCount, timeSpentSeconds, activeProfile.id);
+    // アクティブなプロファイルに対して学習レポートおよびセッションを登録
+    storage.addReportData(activeSubject, correctCount, timeSpentSeconds, activeProfile.id, totalCount);
 
     const reportsAfter = storage.getReports(activeProfile.id);
     const todayReportAfter = reportsAfter.find(r => r.date === todayStr);

@@ -1,4 +1,4 @@
-import type { UserProfile, UserStats, ReviewItem, DailyReport, Subject, DailyGoal } from '../types';
+import type { UserProfile, UserStats, ReviewItem, DailyReport, Subject, DailyGoal, QuizSession } from '../types';
 
 const PROFILES_KEY = 'kids_learnquest_profiles_list';
 const ACTIVE_PROFILE_KEY = 'kids_learnquest_active_profile_id';
@@ -416,7 +416,13 @@ export const storage = {
   },
 
   // 学習レポートの更新
-  addReportData(subject: string, correct: boolean, timeSpentSeconds: number, profileId?: string): void {
+  addReportData(
+    subject: string,
+    correct: boolean | number,
+    timeSpentSeconds: number,
+    profileId?: string,
+    totalAttempted?: number
+  ): void {
     const targetId = profileId || storage.getActiveProfileId();
     const key = `kids_learnquest_reports_${targetId}`;
     const reports = storage.getReports(targetId);
@@ -429,30 +435,68 @@ export const storage = {
         date: todayStr,
         subjectMinutes: { math: 0, japanese: 0, science: 0, social: 0, english: 0 },
         questionsAttempted: 0,
-        questionsCorrect: 0
+        questionsCorrect: 0,
+        subjectBreakdown: {},
+        sessions: []
       };
       reports.push(todayReport);
     }
 
-    todayReport.questionsAttempted += 1;
-    if (correct) {
-      todayReport.questionsCorrect += 1;
-    }
+    const attempted = totalAttempted !== undefined
+      ? totalAttempted
+      : (typeof correct === 'number' ? correct : 1);
+    const correctNum = typeof correct === 'number' ? correct : (correct ? attempted : 0);
+
+    todayReport.questionsAttempted += attempted;
+    todayReport.questionsCorrect += correctNum;
+    todayReport.totalQuestions = todayReport.questionsAttempted;
 
     const subjectKey = subject as Subject;
+    const durationMinutes = timeSpentSeconds / 60;
+
     if (todayReport.subjectMinutes[subjectKey] !== undefined) {
-      todayReport.subjectMinutes[subjectKey] += timeSpentSeconds / 60;
+      todayReport.subjectMinutes[subjectKey] += durationMinutes;
+    } else {
+      todayReport.subjectMinutes[subjectKey] = durationMinutes;
     }
+
+    if (!todayReport.subjectBreakdown) {
+      todayReport.subjectBreakdown = {};
+    }
+    if (!todayReport.subjectBreakdown[subjectKey]) {
+      todayReport.subjectBreakdown[subjectKey] = { total: 0, correct: 0 };
+    }
+    todayReport.subjectBreakdown[subjectKey]!.total += attempted;
+    todayReport.subjectBreakdown[subjectKey]!.correct =
+      (todayReport.subjectBreakdown[subjectKey]!.correct || 0) + correctNum;
+
+    if (!todayReport.sessions) {
+      todayReport.sessions = [];
+    }
+    const session: QuizSession = {
+      subject: subjectKey,
+      questionsAttempted: attempted,
+      questionsCorrect: correctNum,
+      durationMinutes,
+      timestamp: new Date().toISOString()
+    };
+    todayReport.sessions.push(session);
 
     // 1. ローカル保存
     localStorage.setItem(key, JSON.stringify(reports));
 
     // 2. サーバーDBへ非同期送信
-    fetch(`/api/reports/${targetId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(reports)
-    }).catch(err => console.warn("レポートサーバー更新エラー:", err));
+    try {
+      if (typeof window !== 'undefined' && window.location) {
+        fetch(`/api/reports/${targetId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(reports)
+        }).catch(err => console.warn("レポートサーバー更新エラー:", err));
+      }
+    } catch (err) {
+      console.warn("レポートサーバー送信例外:", err);
+    }
   },
 
   // ストリークの更新判定（プロファイル単位）
