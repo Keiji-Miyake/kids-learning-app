@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { UserProfile } from '../types';
+import type { UserProfile, SemesterSystem } from '../types';
 import { storage } from '../utils/storage';
 import { sound } from '../utils/sound';
 import { haptics } from '../utils/haptics';
@@ -50,6 +50,7 @@ export const ProfileSelectorModal: React.FC<ProfileSelectorModalProps> = ({
   const [editEmoji, setEditEmoji] = useState('👦');
   const [editGrade, setEditGrade] = useState<number>(3);
   const [editPin, setEditPin] = useState('');
+  const [editSemesterSystem, setEditSemesterSystem] = useState<SemesterSystem>('3-term');
 
   const avatarOptions = [
     '👦', '👧', '👶', '🧑‍🚀', '👩‍🚀', '🤖', '🐱', '🐶',
@@ -121,6 +122,7 @@ export const ProfileSelectorModal: React.FC<ProfileSelectorModalProps> = ({
     setEditEmoji(profile.avatarEmoji);
     setEditGrade(profile.grade || 3);
     setEditPin(profile.pin || '');
+    setEditSemesterSystem(profile.semesterSystem || '3-term');
     setMode('edit');
   };
 
@@ -147,6 +149,7 @@ export const ProfileSelectorModal: React.FC<ProfileSelectorModalProps> = ({
     setEditEmoji('👦');
     setEditGrade(3);
     setEditPin('');
+    setEditSemesterSystem('3-term');
     setMode('add');
   };
 
@@ -155,7 +158,14 @@ export const ProfileSelectorModal: React.FC<ProfileSelectorModalProps> = ({
     e.preventDefault();
     if (!editName.trim()) return;
     sound.playClick();
-    const created = storage.createProfile(editName, editEmoji, editGrade, editPin.trim() || undefined);
+    const created = storage.addProfile(
+      editName,
+      editEmoji,
+      editGrade,
+      editPin.trim() || undefined,
+      undefined,
+      editSemesterSystem
+    );
     setProfiles(storage.getProfiles());
     setMode('list');
     loginAs(created);
@@ -171,7 +181,8 @@ export const ProfileSelectorModal: React.FC<ProfileSelectorModalProps> = ({
       name: editName.trim(),
       avatarEmoji: editEmoji,
       grade: editGrade,
-      pin: editPin.trim() ? editPin.trim() : undefined
+      pin: editPin.trim() ? editPin.trim() : undefined,
+      semesterSystem: editSemesterSystem
     };
 
     storage.updateProfile(updated);
@@ -254,7 +265,7 @@ export const ProfileSelectorModal: React.FC<ProfileSelectorModalProps> = ({
                           onClick={(e) => handleOpenEdit(e, p)}
                           title="アイコン・名前・学年・暗証番号を変更"
                         >
-                          ✏️ 編集
+                          へんしゅう ✏️
                         </button>
                       )}
 
@@ -363,6 +374,20 @@ export const ProfileSelectorModal: React.FC<ProfileSelectorModalProps> = ({
               <span className="form-hint">※ここで設定した学年がクイズ選択時に自動でセットされます。</span>
             </div>
 
+            <div className="form-group profile-form-group">
+              <label htmlFor="add-semester-system">学期制：</label>
+              <select
+                id="add-semester-system"
+                className="profile-input profile-grade-select"
+                value={editSemesterSystem}
+                onChange={(e) => setEditSemesterSystem(e.target.value as SemesterSystem)}
+              >
+                <option value="3-term">3学期制（1学期・2学期・3学期）</option>
+                <option value="2-term">2学期制（前期・後期）</option>
+              </select>
+              <span className="form-hint">※学校の学期形態（3学期制または前期・後期の2学期制）を選択できます。</span>
+            </div>
+
             <div className="form-group">
               <label>アイコンを選ぶ：</label>
               <div className="emoji-picker">
@@ -436,6 +461,20 @@ export const ProfileSelectorModal: React.FC<ProfileSelectorModalProps> = ({
               <span className="form-hint">※ここで設定した学年がクイズ選択時に自動でセットされます。</span>
             </div>
 
+            <div className="form-group profile-form-group">
+              <label htmlFor="edit-semester-system">学期制：</label>
+              <select
+                id="edit-semester-system"
+                className="profile-input profile-grade-select"
+                value={editSemesterSystem}
+                onChange={(e) => setEditSemesterSystem(e.target.value as SemesterSystem)}
+              >
+                <option value="3-term">3学期制（1学期・2学期・3学期）</option>
+                <option value="2-term">2学期制（前期・後期）</option>
+              </select>
+              <span className="form-hint">※学校の学期形態（3学期制または前期・後期の2学期制）を選択できます。</span>
+            </div>
+
             <div className="form-group">
               <label>アイコン（好きな絵文字を選ぶ）：</label>
               <div className="emoji-picker">
@@ -466,7 +505,7 @@ export const ProfileSelectorModal: React.FC<ProfileSelectorModalProps> = ({
             </div>
 
             <div className="form-actions">
-              <button type="submit" className="start-btn">変更を保存する</button>
+              <button type="submit" className="start-btn">ほぞんする ✨</button>
               <button type="button" className="cancel-btn" onClick={() => setMode('list')}>キャンセル</button>
             </div>
           </form>
