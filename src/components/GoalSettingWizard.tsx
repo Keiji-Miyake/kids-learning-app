@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
+
 import type { DailyGoal, GoalType, Subject, SubjectGoal, UserProfile, DayOfWeek, WeeklySchedule } from '../types';
 import { sound } from '../utils/sound';
 

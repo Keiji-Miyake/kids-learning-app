@@ -32,9 +32,13 @@ describe('Weekly Schedule Goal Evaluator Tests', () => {
       nextLevelExp: 100,
       coins: 0,
       unlockedBadges: [],
-      equippedAvatar: 'default'
+      equippedAvatar: { base: 'default', hat: 'none', accessory: 'none', companion: 'none' },
+      streak: 1,
+      lastActiveDate: '2026-09-07',
+      ownedItems: []
     }
   };
+
 
   it('returns base dailyGoal when weeklySchedule is undefined or disabled', () => {
     // 1. undefined

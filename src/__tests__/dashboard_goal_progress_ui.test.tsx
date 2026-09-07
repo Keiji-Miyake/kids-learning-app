@@ -76,8 +76,19 @@ describe('Goal Progress UI Helper & Display Tests', () => {
           mon: mondayGoal
         }
       },
-      stats: { level: 1, exp: 0, nextLevelExp: 100, coins: 0, unlockedBadges: [], equippedAvatar: 'default' }
+      stats: {
+        level: 1,
+        exp: 0,
+        nextLevelExp: 100,
+        coins: 0,
+        unlockedBadges: [],
+        equippedAvatar: { base: 'default', hat: 'none', accessory: 'none', companion: 'none' },
+        streak: 1,
+        lastActiveDate: '2026-09-07',
+        ownedItems: []
+      }
     };
+
 
     const mondayDate = new Date('2026-09-07T12:00:00Z'); // Monday
     const effective = getEffectiveDailyGoal(profile, mondayDate);

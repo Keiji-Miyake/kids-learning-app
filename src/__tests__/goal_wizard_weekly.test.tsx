@@ -26,9 +26,13 @@ describe('GoalSettingWizard Weekly Schedule Tests', () => {
       nextLevelExp: 100,
       coins: 0,
       unlockedBadges: [],
-      equippedAvatar: 'default'
+      equippedAvatar: { base: 'default', hat: 'none', accessory: 'none', companion: 'none' },
+      streak: 1,
+      lastActiveDate: '2026-09-07',
+      ownedItems: []
     }
   };
+
 
   it('renders weekly schedule toggle and toggles weekday tabs', () => {
     render(<GoalSettingWizard profile={sampleProfile} onSave={() => {}} />);
