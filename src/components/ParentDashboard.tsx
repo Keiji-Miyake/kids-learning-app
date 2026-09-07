@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { storage } from '../utils/storage';
 import type { DailyReport, Subject, UserProfile, DailyGoal } from '../types';
 import { sound } from '../utils/sound';
+import { GoalSettingWizard } from './GoalSettingWizard';
 
 interface ParentDashboardProps {
   onClose: () => void;
@@ -34,26 +35,8 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onClose }) => 
   const [newParentPassword, setNewParentPassword] = useState<string>('');
   const [passwordChangeMsg, setPasswordChangeMsg] = useState<string>('');
 
-  // 現在選択中プロファイルのノルマ設定
+  // 現在選択中プロファイル
   const targetProfile = profiles.find(p => p.id === selectedProfileId) || profiles[0];
-  const [goalType, setGoalType] = useState<'total_count' | 'subject_specific'>(
-    targetProfile?.dailyGoal?.goalType || 'total_count'
-  );
-  const [targetQuestions, setTargetQuestions] = useState<number>(targetProfile?.dailyGoal?.targetQuestions || 5);
-  const [targetMinutes, setTargetMinutes] = useState<number>(targetProfile?.dailyGoal?.targetMinutes || 10);
-  const [rewardText, setRewardText] = useState<string>(targetProfile?.dailyGoal?.rewardText || '🎮 ゲーム30分OK！');
-  const [targetSubject, setTargetSubject] = useState<Subject | 'all'>(targetProfile?.dailyGoal?.targetSubject || 'all');
-  const [targetUnitName, setTargetUnitName] = useState<string>(targetProfile?.dailyGoal?.targetUnitName || 'all');
-  const [subjectGoals, setSubjectGoals] = useState<Partial<Record<Subject, { targetQuestions: number; targetMinutes: number }>>>(
-    targetProfile?.dailyGoal?.subjectGoals || {
-      math: { targetQuestions: 3, targetMinutes: 5 },
-      japanese: { targetQuestions: 3, targetMinutes: 5 },
-      science: { targetQuestions: 0, targetMinutes: 0 },
-      social: { targetQuestions: 0, targetMinutes: 0 },
-      english: { targetQuestions: 0, targetMinutes: 0 }
-    }
-  );
-  const [saveSuccessMessage, setSaveSuccessMessage] = useState<string>('');
 
   const handleParentAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,44 +63,8 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onClose }) => 
     setTimeout(() => setPasswordChangeMsg(''), 3000);
   };
 
-
-
-  useEffect(() => {
-    if (targetProfile) {
-      setGoalType(targetProfile.dailyGoal?.goalType || 'total_count');
-      setTargetQuestions(targetProfile.dailyGoal?.targetQuestions || 5);
-      setTargetMinutes(targetProfile.dailyGoal?.targetMinutes || 10);
-      setRewardText(targetProfile.dailyGoal?.rewardText || '🎮 ゲーム30分OK！');
-      setTargetSubject(targetProfile.dailyGoal?.targetSubject || 'all');
-      setTargetUnitName(targetProfile.dailyGoal?.targetUnitName || 'all');
-      if (targetProfile.dailyGoal?.subjectGoals) {
-        setSubjectGoals(targetProfile.dailyGoal.subjectGoals);
-      } else {
-        setSubjectGoals({
-          math: { targetQuestions: 3, targetMinutes: 5 },
-          japanese: { targetQuestions: 3, targetMinutes: 5 },
-          science: { targetQuestions: 0, targetMinutes: 0 },
-          social: { targetQuestions: 0, targetMinutes: 0 },
-          english: { targetQuestions: 0, targetMinutes: 0 }
-        });
-      }
-    }
-  }, [selectedProfileId, targetProfile]);
-
-  const handleSaveGoal = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveGoal = (updatedGoal: DailyGoal) => {
     if (!targetProfile) return;
-
-    sound.playClick();
-    const updatedGoal: DailyGoal = {
-      targetQuestions,
-      targetMinutes,
-      rewardText: rewardText.trim() || '🎉 ノルマ達成おめでとう！',
-      goalType,
-      targetSubject,
-      targetUnitName,
-      subjectGoals
-    };
 
     const updatedProfile: UserProfile = {
       ...targetProfile,
@@ -127,9 +74,6 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onClose }) => 
     storage.updateProfile(updatedProfile);
     const updatedList = storage.getProfiles();
     setProfiles(updatedList);
-
-    setSaveSuccessMessage(`${targetProfile.name} さんのノルマ＆ご褒美の設定を保存しました！`);
-    setTimeout(() => setSaveSuccessMessage(''), 3000);
   };
 
   const reports: DailyReport[] = storage.getReports(selectedProfileId);
@@ -311,170 +255,8 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onClose }) => 
       </div>
 
       <div className="dashboard-grid">
-        {/* 🎯 1日のノルマ＆ご褒美設定フォーム */}
-        <form className="goal-setting-card card" onSubmit={handleSaveGoal}>
-          <h3 className="chart-title">🎯 1日のノルマ＆ご褒美の設定（{targetProfile.name} さん）</h3>
-          <p className="goal-desc">達成したらゲーム時間やお小遣いなどをあげられるよう、目標と約束を設定できます。</p>
-
-          <div className="goal-form-grid">
-            <div className="form-group">
-              <label>1日の目標回答数：</label>
-              <select
-                className="profile-input"
-                value={targetQuestions}
-                onChange={(e) => setTargetQuestions(Number(e.target.value))}
-              >
-                <option value={3}>3問（手軽に挑戦）</option>
-                <option value={5}>5問（おすすめ・標準）</option>
-                <option value={10}>10問（しっかり学習）</option>
-                <option value={15}>15問（たっぷり挑戦）</option>
-                <option value={20}>20問（がっつり達成）</option>
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label>1日の目標学習時間：</label>
-              <select
-                className="profile-input"
-                value={targetMinutes}
-                onChange={(e) => setTargetMinutes(Number(e.target.value))}
-              >
-                <option value={5}>5分</option>
-                <option value={10}>10分（標準）</option>
-                <option value={15}>15分</option>
-                <option value={30}>30分（長時間学習）</option>
-              </select>
-            </div>
-
-            <div className="form-group full-width">
-              <label>達成した時の約束・ご褒美（自由入力）：</label>
-              <input
-                type="text"
-                className="profile-input"
-                placeholder="例: 🎮 ゲーム30分遊んでOK！ / 💰 お小遣い50円！ / 🍦 アイスプレゼント！"
-                value={rewardText}
-                onChange={(e) => setRewardText(e.target.value)}
-                maxLength={30}
-                required
-              />
-            </div>
-          </div>
-
-          {/* 🌟 ノルマ達成判定基準の選択 */}
-          <div style={{ background: '#eef2ff', padding: '16px', borderRadius: '12px', marginBottom: '16px', border: '1.5px solid #6366f1' }}>
-            <h4 style={{ fontSize: '15px', fontWeight: 'bold', color: '#3730a3', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span>⚙️</span> ノルマ達成の判定基準（モード選択）
-            </h4>
-            <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', background: goalType === 'total_count' ? '#ffffff' : 'transparent', padding: '10px 14px', borderRadius: '8px', border: goalType === 'total_count' ? '2px solid #6366f1' : '1px solid #cbd5e1', fontWeight: 'bold' }}>
-                <input
-                  type="radio"
-                  name="goalType"
-                  value="total_count"
-                  checked={goalType === 'total_count'}
-                  onChange={() => setGoalType('total_count')}
-                />
-                <span>🔘 1日の合計問題数で判定（シンプル）</span>
-              </label>
-
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', background: goalType === 'subject_specific' ? '#ffffff' : 'transparent', padding: '10px 14px', borderRadius: '8px', border: goalType === 'subject_specific' ? '2px solid #6366f1' : '1px solid #cbd5e1', fontWeight: 'bold' }}>
-                <input
-                  type="radio"
-                  name="goalType"
-                  value="subject_specific"
-                  checked={goalType === 'subject_specific'}
-                  onChange={() => setGoalType('subject_specific')}
-                />
-                <span>📚 各教科ごとの目標数で判定（教科別）</span>
-              </label>
-            </div>
-            <p style={{ fontSize: '12px', color: '#4338ca', marginTop: '8px', margin: '8px 0 0 0' }}>
-              {goalType === 'total_count'
-                ? '※ 何の教科でも合計で設定問題数（例: 5問）を解けばノルマ達成となります。'
-                : '※ 各教科ごとの目標数（例: 算数3問・国語3問）を全てクリアした時にノルマ達成となります。'}
-            </p>
-          </div>
-
-          {/* ② 重点対象教科・単元の設定 */}
-          <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', marginBottom: '16px', border: '1px solid #e2e8f0' }}>
-            <h4 style={{ fontSize: '15px', fontWeight: 'bold', color: '#1e293b', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span>2️⃣</span> 重点的に学習させたい教科 ＆ 単元（オプション）
-            </h4>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-              <div className="form-group">
-                <label style={{ fontWeight: 'bold' }}>重点教科：</label>
-                <select
-                  className="profile-input"
-                  value={targetSubject}
-                  onChange={(e) => setTargetSubject(e.target.value as Subject | 'all')}
-                >
-                  <option value="all">指定なし（全体バランス）</option>
-                  <option value="math">算数・数学</option>
-                  <option value="japanese">国語</option>
-                  <option value="science">理科</option>
-                  <option value="social">社会</option>
-                  <option value="english">英語</option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label style={{ fontWeight: 'bold' }}>重点単元名：</label>
-                <input
-                  type="text"
-                  className="profile-input"
-                  placeholder="例: 一次関数 / 漢字"
-                  value={targetUnitName === 'all' ? '' : targetUnitName}
-                  onChange={(e) => setTargetUnitName(e.target.value.trim() || 'all')}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* ③ 教科ごとの目標問題数設定 */}
-          <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', marginBottom: '16px', border: '1px solid #e2e8f0' }}>
-            <h4 style={{ fontSize: '15px', fontWeight: 'bold', color: '#1e293b', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span>3️⃣</span> 教科ごとの目標問題数（教科別判定モード用）
-            </h4>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px' }}>
-              {(['math', 'japanese', 'science', 'social', 'english'] as Subject[]).map(sub => {
-                const labels: Record<Subject, string> = {
-                  math: '🧮 算数',
-                  japanese: '📖 国語',
-                  science: '🧪 理科',
-                  social: '🗺️ 社会',
-                  english: '🔤 英語'
-                };
-                const val = subjectGoals[sub]?.targetQuestions || 0;
-
-                return (
-                  <div key={sub} className="form-group">
-                    <label style={{ fontSize: '13px', fontWeight: 'bold' }}>{labels[sub]}:</label>
-                    <input
-                      type="number"
-                      className="profile-input"
-                      style={{ padding: '6px 10px' }}
-                      min={0}
-                      max={20}
-                      value={val === 0 ? '' : val}
-                      placeholder="0問"
-                      onChange={(e) => {
-                        const num = Math.max(0, parseInt(e.target.value, 10) || 0);
-                        setSubjectGoals(prev => ({
-                          ...prev,
-                          [sub]: { targetQuestions: num, targetMinutes: num * 2 }
-                        }));
-                      }}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-          <div className="goal-actions" style={{ marginTop: '20px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <button type="submit" className="start-btn">ノルマ・ご褒美を保存する 💾</button>
-            {saveSuccessMessage && <span className="save-success-msg" style={{ color: '#16a34a', fontWeight: 'bold' }}>✅ {saveSuccessMessage}</span>}
-          </div>
-        </form>
+        {/* 🎯 1日のノルマ＆ご褒美設定ウィザード */}
+        <GoalSettingWizard profile={targetProfile} onSave={handleSaveGoal} />
 
         {/* サマリーカード */}
         <div className="summary-cards-row">

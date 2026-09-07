@@ -9,12 +9,20 @@ class SoundManager {
     // ユーザーインタラクションの後に初期化する
   }
 
-  private initContext() {
+  private initContext(): AudioContext | null {
+    if (typeof window === 'undefined') return null;
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return null;
+
     if (!this.ctx) {
-      this.ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      try {
+        this.ctx = new AudioCtx();
+      } catch {
+        return null;
+      }
     }
-    if (this.ctx.state === 'suspended') {
-      this.ctx.resume();
+    if (this.ctx && this.ctx.state === 'suspended') {
+      this.ctx.resume().catch(() => {});
     }
     return this.ctx;
   }
@@ -31,6 +39,7 @@ class SoundManager {
   public playCorrect() {
     if (!this.enabled) return;
     const ctx = this.initContext();
+    if (!ctx) return;
     const now = ctx.currentTime;
 
     const osc1 = ctx.createOscillator();
@@ -64,6 +73,7 @@ class SoundManager {
   public playWrong() {
     if (!this.enabled) return;
     const ctx = this.initContext();
+    if (!ctx) return;
     const now = ctx.currentTime;
 
     const osc = ctx.createOscillator();
@@ -75,7 +85,7 @@ class SoundManager {
     osc.frequency.linearRampToValueAtTime(120, now + 0.25);
 
     gainNode.gain.setValueAtTime(0.2, now);
-    gainNode.gain.linearRampToValueAtTime(0.01, now + 0.25);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
 
     osc.connect(gainNode);
     gainNode.connect(ctx.destination);
@@ -88,6 +98,7 @@ class SoundManager {
   public playClick() {
     if (!this.enabled) return;
     const ctx = this.initContext();
+    if (!ctx) return;
     const now = ctx.currentTime;
 
     const osc = ctx.createOscillator();
@@ -111,6 +122,7 @@ class SoundManager {
   public playLevelUp() {
     if (!this.enabled) return;
     const ctx = this.initContext();
+    if (!ctx) return;
     const now = ctx.currentTime;
 
     const playTone = (freq: number, startTime: number, duration: number) => {
@@ -139,6 +151,7 @@ class SoundManager {
   public playCoin() {
     if (!this.enabled) return;
     const ctx = this.initContext();
+    if (!ctx) return;
     const now = ctx.currentTime;
 
     const osc = ctx.createOscillator();
