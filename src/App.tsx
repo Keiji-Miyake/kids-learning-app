@@ -401,6 +401,7 @@ export const App: React.FC = () => {
                   colorClass="card-math"
                   description="計算や図形、分数のナゾを解き明かそう！"
                   defaultGrade={activeProfile.grade || 3}
+                  semesterSystem={activeProfile?.semesterSystem}
                   onSelect={handleSelectSubject}
                 />
                 <SubjectCard
@@ -410,6 +411,7 @@ export const App: React.FC = () => {
                   colorClass="card-japanese"
                   description="漢字やことわざを覚えて、日本語マスターになろう！"
                   defaultGrade={activeProfile.grade || 3}
+                  semesterSystem={activeProfile?.semesterSystem}
                   onSelect={handleSelectSubject}
                 />
                 <SubjectCard
@@ -419,6 +421,7 @@ export const App: React.FC = () => {
                   colorClass="card-science"
                   description="宇宙の不思議や生き物のヒミツをさぐろう！"
                   defaultGrade={activeProfile.grade || 3}
+                  semesterSystem={activeProfile?.semesterSystem}
                   onSelect={handleSelectSubject}
                 />
                 <SubjectCard
@@ -428,6 +431,7 @@ export const App: React.FC = () => {
                   colorClass="card-social"
                   description="日本の都道府県や歴史のヒーローたちに会いにいこう！"
                   defaultGrade={activeProfile.grade || 3}
+                  semesterSystem={activeProfile?.semesterSystem}
                   onSelect={handleSelectSubject}
                 />
                 <SubjectCard
@@ -437,6 +441,7 @@ export const App: React.FC = () => {
                   colorClass="card-english"
                   description="たのしい単語や英語のあいさつにチャレンジ！"
                   defaultGrade={activeProfile.grade || 3}
+                  semesterSystem={activeProfile?.semesterSystem}
                   onSelect={handleSelectSubject}
                 />
               </div>

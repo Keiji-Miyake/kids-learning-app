@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import type { Subject } from '../types';
+import type { Subject, SemesterSystem } from '../types';
 import { sound } from '../utils/sound';
-import { getCurriculumUnits, type CurriculumUnit } from '../data/curriculumLOD';
+import { getCurriculumUnits, getDisplayTerm, type CurriculumUnit } from '../data/curriculumLOD';
 
 interface SubjectCardProps {
   id: Subject;
@@ -10,6 +10,7 @@ interface SubjectCardProps {
   colorClass: string;
   description: string;
   defaultGrade?: number;
+  semesterSystem?: SemesterSystem;
   onSelect: (subject: Subject, grade: number, unit?: CurriculumUnit) => void;
 }
 
@@ -20,6 +21,7 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({
   colorClass,
   description,
   defaultGrade = 3,
+  semesterSystem,
   onSelect
 }) => {
   const [selectedGrade, setSelectedGrade] = useState<number>(defaultGrade);
@@ -94,7 +96,7 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({
             >
               {units.map((u, idx) => (
                 <option key={u.code} value={idx}>
-                  {u.term ? `[${u.term}] ` : ''}{u.unitName}
+                  {`[${getDisplayTerm(u, semesterSystem)}] `}{u.unitName}
                 </option>
               ))}
             </select>
@@ -118,7 +120,7 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({
                     className={`unit-list-item ${i === selectedUnitIndex ? 'active' : ''}`}
                     onClick={() => { setSelectedUnitIndex(i); sound.playClick(); }}
                   >
-                    <span className="unit-item-term">{u.term || '通年'}</span>
+                    <span className="unit-item-term">{getDisplayTerm(u, semesterSystem)}</span>
                     <span className="unit-item-name">{u.unitName}</span>
                   </li>
                 ))}
