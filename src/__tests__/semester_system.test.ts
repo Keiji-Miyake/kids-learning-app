@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { curriculumLOD, getDisplayTerm, getCurriculumUnits } from '../data/curriculumLOD';
-import type { SemesterSystem } from '../types';
 
 describe('カリキュラムLOD 2学期制（前期・後期）対応テスト', () => {
   it('getDisplayTerm: 3学期制のときは unit.term を返却する', () => {
