@@ -1,6 +1,7 @@
-import type { Question, Subject } from '../types';
+import type { Question, Subject, QuestionSRSItem } from '../types';
 import { generateDynamicQuestion } from './questionGenerator';
 import { questions as fixedQuestions } from '../data/questions';
+import { generateQuestionKey, isQuestionAvailableForDailyQuiz, getTodayDateString } from './spacedRepetition';
 
 export const generateUniqueQuizSet = (
   subject: Subject,
@@ -8,10 +9,13 @@ export const generateUniqueQuizSet = (
   count: number = 5,
   unitName?: string,
   excludeIds: string[] = [],
-  excludeTexts: string[] = []
+  excludeTexts: string[] = [],
+  srsData?: Record<string, QuestionSRSItem>,
+  todayStr?: string
 ): Question[] => {
   const resultSet: Question[] = [];
   const usedTexts = new Set<string>(excludeTexts);
+  const today = todayStr || getTodayDateString();
 
   const isStrictUnitMode = !!(unitName && unitName !== 'all');
 
@@ -45,6 +49,14 @@ export const generateUniqueQuizSet = (
   // 1. 固定問題のフィルタリング
   let matchingFixed = fixedQuestions.filter(q => q.subject === subject && (grade ? q.grade === grade : true));
 
+  // 🧠 間隔反復（SRS）判定: 完全マスター済みおよびクールダウン中（1週間・4週間・1ヶ月待ち）の問題を除外
+  if (srsData) {
+    matchingFixed = matchingFixed.filter(q => {
+      const srsItem = srsData[generateQuestionKey(q)];
+      return isQuestionAvailableForDailyQuiz(srsItem, today);
+    });
+  }
+
   if (isStrictUnitMode) {
     matchingFixed = matchingFixed.filter(q => {
       // 特殊除外ルール: 平方根単元に二次方程式の問題が混入するのを防ぐ
@@ -55,7 +67,24 @@ export const generateUniqueQuizSet = (
     });
   }
 
-  const pool = [...matchingFixed].sort(() => Math.random() - 0.5);
+  // 🌟 復習期日を迎えた問題（忘却曲線の黄金タイミング）を最優先プールに分ける
+  const dueFixed: Question[] = [];
+  const freshFixed: Question[] = [];
+
+  matchingFixed.forEach(q => {
+    const srsItem = srsData ? srsData[generateQuestionKey(q)] : undefined;
+    if (srsItem && srsItem.stage > 0 && srsItem.nextAvailableAt <= today && !srsItem.isMastered) {
+      dueFixed.push(q);
+    } else {
+      freshFixed.push(q);
+    }
+  });
+
+  // 通常問題をシャッフルした上に、復習期日到来問題を最優先（popで先に出るように末尾）に配置
+  const pool = [
+    ...freshFixed.sort(() => Math.random() - 0.5),
+    ...dueFixed.sort(() => Math.random() - 0.5)
+  ];
 
   let attempts = 0;
   while (resultSet.length < count && attempts < 500) {
@@ -73,6 +102,14 @@ export const generateUniqueQuizSet = (
 
     // 動的問題の生成
     const dyn = generateDynamicQuestion(subject, grade, unitName);
+    const dynKey = generateQuestionKey(dyn);
+    const dynSrsItem = srsData ? srsData[dynKey] : undefined;
+
+    // 動的問題もクールダウン中・マスター済みの場合は除外
+    if (srsData && !isQuestionAvailableForDailyQuiz(dynSrsItem, today)) {
+      continue;
+    }
+
     if (!usedTexts.has(dyn.questionText) && !excludeIds.includes(dyn.id)) {
       usedTexts.add(dyn.questionText);
       resultSet.push(dyn);
@@ -86,6 +123,13 @@ export const generateUniqueQuizSet = (
     safeAttempts++;
     // 単元指定を外して同学年・同教科の関連問題を動的生成
     const dyn = generateDynamicQuestion(subject, grade);
+    const dynKey = generateQuestionKey(dyn);
+    const dynSrsItem = srsData ? srsData[dynKey] : undefined;
+
+    if (srsData && !isQuestionAvailableForDailyQuiz(dynSrsItem, today)) {
+      continue;
+    }
+
     if (!usedTexts.has(dyn.questionText) && !excludeIds.includes(dyn.id)) {
       usedTexts.add(dyn.questionText);
       resultSet.push(dyn);

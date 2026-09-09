@@ -3,6 +3,7 @@ import { storage } from '../utils/storage';
 import type { DailyReport, Subject, UserProfile, DailyGoal, WeeklySchedule, DayOfWeek } from '../types';
 import { sound } from '../utils/sound';
 import { getGoalProgress, getEffectiveDailyGoal, DAY_OF_WEEK_LABELS } from '../utils/goalEvaluator';
+import { getSRSStats } from '../utils/spacedRepetition';
 import { GoalSettingWizard } from './GoalSettingWizard';
 
 
@@ -366,6 +367,65 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onClose }) => 
             </div>
           </div>
         </div>
+
+        {/* 🧠 忘却曲線・記憶定着ステータスカード */}
+        {(() => {
+          const srsData = storage.getSRSData(selectedProfileId);
+          const srsStats = getSRSStats(srsData);
+
+          return (
+            <div className="card" style={{ marginTop: '16px', padding: '20px', border: '2px solid #8b5cf6', background: 'linear-gradient(135deg, #ffffff 0%, #faf5ff 100%)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '22px' }}>🧠</span>
+                  <h3 style={{ margin: 0, fontSize: '16px', color: '#581c87', fontWeight: '800' }}>
+                    記憶定着・忘却曲線システム進捗
+                  </h3>
+                </div>
+                <span style={{ fontSize: '11px', background: '#f3e8ff', color: '#6b21a8', padding: '4px 10px', borderRadius: '12px', fontWeight: 'bold' }}>
+                  毎日同じ問題は出ない設計
+                </span>
+              </div>
+
+              <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 16px 0', lineHeight: 1.5 }}>
+                1回解いた問題は<strong>1週間後</strong>、次は<strong>4週間後</strong>、さらに<strong>1ヶ月後</strong>に復習し、定着したらノルマから卒業（マスター）します。
+              </p>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginBottom: '14px' }}>
+                <div style={{ background: '#ffffff', padding: '12px', borderRadius: '10px', border: '1px solid #e9d5ff', textAlign: 'center' }}>
+                  <div style={{ fontSize: '20px', fontWeight: '800', color: '#15803d' }}>{srsStats.masteredCount}問</div>
+                  <div style={{ fontSize: '11px', color: '#166534', fontWeight: 'bold', marginTop: '2px' }}>👑 完全マスター（卒業）</div>
+                </div>
+
+                <div style={{ background: '#ffffff', padding: '12px', borderRadius: '10px', border: '1px solid #e9d5ff', textAlign: 'center' }}>
+                  <div style={{ fontSize: '20px', fontWeight: '800', color: '#7c3aed' }}>{srsStats.inProgressCount}問</div>
+                  <div style={{ fontSize: '11px', color: '#6b21a8', fontWeight: 'bold', marginTop: '2px' }}>🌱 記憶定着中</div>
+                </div>
+
+                <div style={{ background: '#ffffff', padding: '12px', borderRadius: '10px', border: '1px solid #e9d5ff', textAlign: 'center' }}>
+                  <div style={{ fontSize: '20px', fontWeight: '800', color: srsStats.dueTodayCount > 0 ? '#dc2626' : '#64748b' }}>
+                    {srsStats.dueTodayCount}問
+                  </div>
+                  <div style={{ fontSize: '11px', color: srsStats.dueTodayCount > 0 ? '#b91c1c' : '#475569', fontWeight: 'bold', marginTop: '2px' }}>
+                    🔔 今日の復習期日
+                  </div>
+                </div>
+
+                <div style={{ background: '#ffffff', padding: '12px', borderRadius: '10px', border: '1px solid #e9d5ff', textAlign: 'center' }}>
+                  <div style={{ fontSize: '20px', fontWeight: '800', color: '#d97706' }}>{srsStats.coolingDownCount}問</div>
+                  <div style={{ fontSize: '11px', color: '#b45309', fontWeight: 'bold', marginTop: '2px' }}>⏳ クールダウン中</div>
+                </div>
+              </div>
+
+              <div style={{ background: '#ffffff', padding: '10px 14px', borderRadius: '8px', border: '1px solid #f3e8ff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: '#4b5563', flexWrap: 'wrap', gap: '6px' }}>
+                <span>ステップ内訳:</span>
+                <span>🌱1回目(1週後): <strong>{srsStats.stageBreakdown[1] || 0}問</strong></span>
+                <span>🌿2回目(4週後): <strong>{srsStats.stageBreakdown[2] || 0}問</strong></span>
+                <span>🌳3回目(1月後): <strong>{srsStats.stageBreakdown[3] || 0}問</strong></span>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* グラフカード */}
         <div className="dashboard-chart-card card">

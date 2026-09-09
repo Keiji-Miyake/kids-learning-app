@@ -3,12 +3,13 @@ import { sound } from '../utils/sound';
 import { haptics } from '../utils/haptics';
 import { ConfettiEffect } from '../utils/confetti';
 import { storage } from '../utils/storage';
-import type { UserStats } from '../types';
+import type { UserStats, QuestionSRSItem } from '../types';
 
 interface ResultModalProps {
   correctCount: number;
   totalCount: number;
   stats: UserStats;
+  srsUpdates?: QuestionSRSItem[];
   onUpdateStats: (newStats: UserStats) => void;
   onClose: () => void;
   onRetry?: () => void; // 新しい問題で再挑戦
@@ -18,6 +19,7 @@ export const ResultModal: React.FC<ResultModalProps> = ({
   correctCount,
   totalCount,
   stats,
+  srsUpdates,
   onUpdateStats,
   onClose,
   onRetry
@@ -151,6 +153,47 @@ export const ResultModal: React.FC<ResultModalProps> = ({
             </div>
           </div>
         </div>
+
+        {srsUpdates && srsUpdates.length > 0 && (
+          <div className="srs-results-container" style={{ marginTop: '16px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px', textAlign: 'left' }}>
+            <h4 style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>🧠</span> 記憶の定着ステップ（忘却曲線システム）
+            </h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {srsUpdates.map((item, idx) => {
+                let badgeColor = '#3b82f6';
+                let badgeText = '';
+                if (item.isMastered) {
+                  badgeColor = '#ca8a04';
+                  badgeText = '👑 完全マスター達成！（ノルマ卒業）';
+                } else if (item.stage === 1) {
+                  badgeColor = '#16a34a';
+                  badgeText = '🌱 1回目クリア（次は1週間後に復習）';
+                } else if (item.stage === 2) {
+                  badgeColor = '#0891b2';
+                  badgeText = '🌿 2回目クリア（次は4週間後に復習）';
+                } else if (item.stage === 3) {
+                  badgeColor = '#7c3aed';
+                  badgeText = '🌳 3回目クリア（次は1ヶ月後に復習）';
+                } else {
+                  badgeColor = '#dc2626';
+                  badgeText = '🔄 明日もう一度復習！';
+                }
+
+                return (
+                  <div key={idx} style={{ fontSize: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#ffffff', padding: '6px 10px', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
+                    <span style={{ color: '#475569', fontWeight: 500 }}>
+                      第{idx + 1}問
+                    </span>
+                    <span style={{ fontSize: '11px', fontWeight: 'bold', color: badgeColor }}>
+                      {badgeText}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <div className="result-actions" style={{ display: 'flex', gap: '10px', width: '100%', marginTop: '16px' }}>
           {onRetry && (

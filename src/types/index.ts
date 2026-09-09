@@ -99,3 +99,28 @@ export interface DailyReport {
   subjectBreakdown?: Partial<Record<Subject, { total: number; correct?: number }>>;
   sessions?: QuizSession[];
 }
+
+// 🧠 間隔反復記憶法 (Spaced Repetition System: SRS) の学習ステータス
+export interface QuestionSRSItem {
+  questionKey: string;      // 問題のユニーク識別キー (questionId または問題テキストの正規化キー)
+  questionId: string;       // 問題ID
+  subject: Subject;         // 教科
+  grade: number;            // 学年
+  unitName?: string;        // 単元名
+  stage: number;            // 0: 未着手/再学習, 1: 1週間後, 2: 4週間後, 3: 1ヶ月後, 4: 完全習得(Mastered)
+  lastAttemptedAt: string;  // 最後に解いた日時 (YYYY-MM-DD)
+  nextAvailableAt: string;  // 次に出題可能になる日 (YYYY-MM-DD)
+  intervalDays: number;     // 現在の間隔日数 (0, 7, 28, 30)
+  isMastered: boolean;      // 完全習得（ノルマには今後表示しない）
+  correctStreak: number;    // 連続正解回数
+  totalAttempts: number;    // 累計解答回数
+  totalCorrect: number;     // 累計正解回数
+}
+
+export interface SRSStats {
+  masteredCount: number;     // 完全マスターした問題数
+  inProgressCount: number;   // 学習中（Stage 1〜3）の問題数
+  dueTodayCount: number;     // 今日復習期日を迎えた問題数
+  coolingDownCount: number;  // クールダウン中（次回待ち）の問題数
+  stageBreakdown: Record<number, number>; // ステージ別内訳
+}

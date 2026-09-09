@@ -12,10 +12,11 @@ import { GoalAchievedModal } from './components/GoalAchievedModal';
 import AvatarPreview from './components/AvatarPreview';
 
 import { questions } from './data/questions';
-import type { UserStats, Subject, Question, UserProfile } from './types';
+import type { UserStats, Subject, Question, UserProfile, QuestionSRSItem } from './types';
 import { storage } from './utils/storage';
 
 import { generateUniqueQuizSet } from './utils/quizSetGenerator';
+import { getSRSStats } from './utils/spacedRepetition';
 import { RoadmapScreen } from './components/RoadmapScreen';
 import ExamScreen from './components/ExamScreen';
 
@@ -44,6 +45,7 @@ export const App: React.FC = () => {
     correctCount: number;
     totalCount: number;
     wrongQuestionIds: string[];
+    srsUpdates?: QuestionSRSItem[];
   } | null>(null);
 
   // 起動時・タブフォーカス時・定期自動同期
@@ -123,9 +125,10 @@ export const App: React.FC = () => {
   const handleSelectSubject = (subject: Subject, grade: number, unit?: CurriculumUnit) => {
     setActiveUnit(unit);
     const unitName = unit ? unit.unitName : '';
+    const srsData = storage.getSRSData(activeProfile.id);
 
-    // 重複を100%排除した5問のユニーク問題セットを生成
-    const selected5 = generateUniqueQuizSet(subject, grade, 5, unitName, recentQuestionIds, recentQuestionTexts);
+    // 重複を100%排除し、SRS（忘却曲線クールダウン・マスター除外・復習優先）を適用した5問を生成
+    const selected5 = generateUniqueQuizSet(subject, grade, 5, unitName, recentQuestionIds, recentQuestionTexts, srsData);
     setRecentQuestionIds(prev => [...prev.slice(-20), ...selected5.map(q => q.id)]);
     setRecentQuestionTexts(prev => [...prev.slice(-20), ...selected5.map(q => q.questionText)]);
 
@@ -142,9 +145,10 @@ export const App: React.FC = () => {
   const handleStartUnitExam = (subject: Subject, grade: number, unit: CurriculumUnit) => {
     setExamUnit(unit);
     setActiveSubject(subject);
+    const srsData = storage.getSRSData(activeProfile.id);
 
     // 10問の完全ユニーク本格単元テスト問題を生成
-    const examPool = generateUniqueQuizSet(subject, grade, 10, unit.unitName, recentQuestionIds, recentQuestionTexts);
+    const examPool = generateUniqueQuizSet(subject, grade, 10, unit.unitName, recentQuestionIds, recentQuestionTexts, srsData);
     setRecentQuestionIds(prev => [...prev.slice(-20), ...examPool.map(q => q.id)]);
     setRecentQuestionTexts(prev => [...prev.slice(-20), ...examPool.map(q => q.questionText)]);
     setExamQuestions(examPool);
@@ -194,10 +198,19 @@ export const App: React.FC = () => {
       }
     });
 
+    // 🧠 出題された各問題のSRS（間隔反復記憶法）ステータスを更新
+    const srsUpdates: QuestionSRSItem[] = [];
+    activeQuestions.forEach(q => {
+      const isCorrect = !wrongQuestionIds.includes(q.id);
+      const updatedItem = storage.updateQuestionSRS(q, isCorrect, activeProfile.id, todayStr);
+      srsUpdates.push(updatedItem);
+    });
+
     setQuizResults({
       correctCount,
       totalCount,
-      wrongQuestionIds
+      wrongQuestionIds,
+      srsUpdates
     });
     setCurrentScreen('result');
   };
@@ -264,6 +277,9 @@ export const App: React.FC = () => {
                 social: '🗺 社会',
                 english: '🔤 英語'
               };
+
+              const srsData = storage.getSRSData(activeProfile.id);
+              const srsStats = getSRSStats(srsData, todayStr);
 
               return (
                 <section className="daily-goal-card card" style={{ border: '2px solid #3b82f6', background: 'linear-gradient(135deg, #ffffff 0%, #eff6ff 100%)' }}>
@@ -353,6 +369,30 @@ export const App: React.FC = () => {
                       </div>
                     </div>
                   )}
+
+                  {/* 🧠 忘却曲線・記憶定着ステータス */}
+                  <div style={{ marginTop: '12px', background: '#f8fafc', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                    <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        🧠 記憶法（忘却曲線）ステータス:
+                      </span>
+                      <span style={{ fontSize: '11px', color: '#64748b' }}>毎日同じ問題は出ません</span>
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                      <span style={{ fontSize: '12px', background: srsStats.dueTodayCount > 0 ? '#fee2e2' : '#f1f5f9', color: srsStats.dueTodayCount > 0 ? '#b91c1c' : '#475569', padding: '3px 8px', borderRadius: '12px', fontWeight: 'bold', border: srsStats.dueTodayCount > 0 ? '1px solid #f87171' : '1px solid #cbd5e1' }}>
+                        🔔 今日の復習対象: {srsStats.dueTodayCount}問
+                      </span>
+                      <span style={{ fontSize: '12px', background: '#dbeafe', color: '#1e40af', padding: '3px 8px', borderRadius: '12px', fontWeight: 'bold' }}>
+                        🌱 記憶定着中: {srsStats.inProgressCount}問
+                      </span>
+                      <span style={{ fontSize: '12px', background: '#fef3c7', color: '#92400e', padding: '3px 8px', borderRadius: '12px', fontWeight: 'bold' }}>
+                        ⏳ 復習待ち（クールダウン）: {srsStats.coolingDownCount}問
+                      </span>
+                      <span style={{ fontSize: '12px', background: '#dcfce7', color: '#15803d', padding: '3px 8px', borderRadius: '12px', fontWeight: 'bold' }}>
+                        👑 完全マスター（卒業）: {srsStats.masteredCount}問
+                      </span>
+                    </div>
+                  </div>
 
                   <div className="goal-card-footer" style={{ marginTop: '12px' }}>
                     <span className="goal-reward-preview">
@@ -538,6 +578,7 @@ export const App: React.FC = () => {
           correctCount={quizResults.correctCount}
           totalCount={quizResults.totalCount}
           stats={stats}
+          srsUpdates={quizResults.srsUpdates}
           onUpdateStats={(newStats) => {
             setStats(newStats);
             storage.saveStats(newStats, activeProfile.id);

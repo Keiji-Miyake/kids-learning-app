@@ -35,7 +35,8 @@ function readDB() {
       stats: {},
       reviews: {},
       reports: {},
-      progress: {}
+      progress: {},
+      srs: {}
     };
     fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2), 'utf-8');
     return initialData;
@@ -54,6 +55,7 @@ function readDB() {
     if (!data.reviews) data.reviews = {};
     if (!data.reports) data.reports = {};
     if (!data.progress) data.progress = {};
+    if (!data.srs) data.srs = {};
     if (!data.parentPasswordHash) data.parentPasswordHash = DEFAULT_PARENT_PASSWORD_HASH;
     return data;
   } catch (err) {
@@ -157,6 +159,7 @@ app.delete('/api/profiles/:id', (req, res) => {
   delete db.stats[id];
   delete db.reviews[id];
   delete db.reports[id];
+  delete db.srs[id];
 
   writeDB(db);
   res.json({ success: true });
@@ -234,6 +237,22 @@ app.post('/api/progress', (req, res) => {
     writeDB(db);
   }
   res.json({ success: true, profileId, completedUnits: db.progress[profileId] });
+});
+
+// 10.65. 間隔反復記憶法（SRS）データの取得
+app.get('/api/srs/:profileId', (req, res) => {
+  const db = readDB();
+  const { profileId } = req.params;
+  res.json(db.srs[profileId] || {});
+});
+
+// 10.66. 間隔反復記憶法（SRS）データの更新
+app.put('/api/srs/:profileId', (req, res) => {
+  const db = readDB();
+  const { profileId } = req.params;
+  db.srs[profileId] = req.body || {};
+  writeDB(db);
+  res.json({ success: true });
 });
 
 // 10.7. 保護者パスワードの検証

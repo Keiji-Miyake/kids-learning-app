@@ -1140,6 +1140,260 @@ export const questions: Question[] = [
     options: ['If I were a bird, I could fly to you.', 'If I am a bird, I can fly to you.', 'If I was a bird, I fly to you.', 'If I have been a bird, I will fly to you.'],
     correctAnswer: 'If I were a bird, I could fly to you.',
     explanation: '現在の事実と反対の仮定を表す「仮定法過去」は [If + 主語 + 過去形(were), 主語 + could/would + 原形] を使います。'
+  },
+
+  // ----------------------------------------------------
+  // 🧮 算数・数学（拡充問題）
+  // ----------------------------------------------------
+  {
+    id: 'math-g1-3',
+    subject: 'math',
+    grade: 1,
+    questionText: '時計の短い針が「3」、長い針が「12」を指しているよ。何時かな？',
+    options: ['3時', '12時', '6時', '3時30分'],
+    correctAnswer: '3時',
+    explanation: '短い針が3、長い針が12のときは「3時（ちょうど）」です。'
+  },
+  {
+    id: 'math-g2-3',
+    subject: 'math',
+    grade: 2,
+    questionText: '3つの角（かど）と、3本の直線（へん）で囲まれた形はどれかな？',
+    options: ['三角形', '四角形', '円', '五角形'],
+    correctAnswer: '三角形',
+    explanation: '3本の直線で囲まれた形を「三角形（さんかくけい）」といいます。'
+  },
+  {
+    id: 'math-g3-3',
+    subject: 'math',
+    grade: 3,
+    questionText: '「1キログラム（1kg）」は、何グラム（g）かな？',
+    options: ['10g', '100g', '1000g', '10000g'],
+    correctAnswer: '1000g',
+    explanation: '1kg は 1000g です。「キロ」は1000倍という意味があります。'
+  },
+  {
+    id: 'math-g4-3',
+    subject: 'math',
+    grade: 4,
+    questionText: '直角（90度）よりも小さく、0度より大きい角度を何というか？',
+    options: ['鋭角', '鈍角', '直角', '平角'],
+    correctAnswer: '鋭角',
+    explanation: '0度より大きく90度より小さいとがった角を「鋭角（えいかく）」といいます。'
+  },
+  {
+    id: 'math-g5-3',
+    subject: 'math',
+    grade: 5,
+    questionText: '1辺が4cmの立方体の体積は何㎤（立方センチメートル）かな？',
+    options: ['16㎤', '48㎤', '64㎤', '96㎤'],
+    correctAnswer: '64㎤',
+    explanation: '立方体の体積は「一辺 × 一辺 × 一辺」なので、4 × 4 × 4 = 64㎤ です。'
+  },
+  {
+    id: 'math-g6-3',
+    subject: 'math',
+    grade: 6,
+    questionText: '比の計算：「6 : 8」をできるだけ簡単な整数の比で表すとどれかな？',
+    options: ['3 : 4', '2 : 3', '4 : 5', '1 : 2'],
+    correctAnswer: '3 : 4',
+    explanation: '6と8をどちらも最大公約数の2で割ると「3 : 4」になります。'
+  },
+
+  // ----------------------------------------------------
+  // 📖 国語（拡充問題）
+  // ----------------------------------------------------
+  {
+    id: 'jp-g1-3',
+    subject: 'japanese',
+    grade: 1,
+    questionText: '「おおきい」の 反対（はんたい）の 言葉（ことば）は どれかな？',
+    options: ['ちいさい', 'たかい', 'ながい', 'あかるい'],
+    correctAnswer: 'ちいさい',
+    explanation: '「おおきい」の反対は「ちいさい」です。'
+  },
+  {
+    id: 'jp-g2-3',
+    subject: 'japanese',
+    grade: 2,
+    questionText: '文の中で「だれが・なにが」を表す部分を何というか？',
+    options: ['主語（しゅご）', '述語（じゅつご）', '修飾語（しゅうしょくご）', '接続語（せつぞくご）'],
+    correctAnswer: '主語（しゅご）',
+    explanation: '「だれが」「なにが」を表す部分を「主語」といいます。'
+  },
+  {
+    id: 'jp-g3-3',
+    subject: 'japanese',
+    grade: 3,
+    questionText: '待ち遠しくてたまらない様子を表すことわざ・慣用句はどれかな？',
+    options: ['首を長くする', '手を焼く', '足を引っ張る', '耳を疑う'],
+    correctAnswer: '首を長くする',
+    explanation: '今か今かと楽しみに待つことを「首を長くする」といいます。'
+  },
+  {
+    id: 'jp-g4-3',
+    subject: 'japanese',
+    grade: 4,
+    questionText: '「雨が降ってきた。（　　）、傘を持っていこう。」空欄に入る適切な接続詞は？',
+    options: ['だから', 'しかし', 'または', 'なぜなら'],
+    correctAnswer: 'だから',
+    explanation: '前が原因で後ろが結果になる順接の接続詞は「だから」です。'
+  },
+  {
+    id: 'jp-g5-3',
+    subject: 'japanese',
+    grade: 5,
+    questionText: '相手を敬い、相手を高めて言う言葉づかいを何というか？',
+    options: ['尊敬語（そんけいご）', '謙譲語（けんじょうご）', '丁寧語（ていねいご）', '美化語（びかご）'],
+    correctAnswer: '尊敬語（そんけいご）',
+    explanation: '先生や目上の人の動作を高めて敬意を表す言葉を「尊敬語」といいます。'
+  },
+  {
+    id: 'jp-g6-3',
+    subject: 'japanese',
+    grade: 6,
+    questionText: '俳句（はいく）の音の数（五・七・五）のリズムは全部で何音かな？',
+    options: ['17音', '31音', '15音', '20音'],
+    correctAnswer: '17音',
+    explanation: '俳句は五・七・五の合計17音で詠みます。（短歌は五・七・五・七・七の31音）'
+  },
+
+  // ----------------------------------------------------
+  // 🧪 理科（拡充問題）
+  // ----------------------------------------------------
+  {
+    id: 'sci-g3-3',
+    subject: 'science',
+    grade: 3,
+    questionText: '磁石（じしゃく）の同じ極（N極とN極、S極とS極）どうしを近づけるとどうなるかな？',
+    options: ['しりぞけ合う（反発する）', '引きつけ合う（くっつく）', '何も起きない', 'まわり始める'],
+    correctAnswer: 'しりぞけ合う（反発する）',
+    explanation: '磁石の同じ極どうしは退け合い、ちがう極どうし（N極とS極）は引き合います。'
+  },
+  {
+    id: 'sci-g4-3',
+    subject: 'science',
+    grade: 4,
+    questionText: '真夜中に南の空に見える満月は、朝方にはどの方角に沈むかな？',
+    options: ['西', '東', '北', '南'],
+    correctAnswer: '西',
+    explanation: '月も太陽と同じように、東からのぼって南の空を通り、西へ沈みます。'
+  },
+  {
+    id: 'sci-g5-3',
+    subject: 'science',
+    grade: 5,
+    questionText: 'アサガオやインゲンマメの種子が発芽するために「必要のないもの」はどれかな？',
+    options: ['肥料（栄養）', '水', '空気（酸素）', '適した温度'],
+    correctAnswer: '肥料（栄養）',
+    explanation: '発芽の3条件は「水・空気・適温」です。肥料は芽が出た後の成長に必要ですが発芽には不要です。'
+  },
+  {
+    id: 'sci-g6-3',
+    subject: 'science',
+    grade: 6,
+    questionText: '青色リトマス紙を赤色に変える水溶液の性質は何性かな？',
+    options: ['酸性', '中性', 'アルカリ性', '弱アルカリ性'],
+    correctAnswer: '酸性',
+    explanation: '酸性の水溶液（塩酸や酢など）は、青色リトマス紙を赤色に変えます。'
+  },
+
+  // ----------------------------------------------------
+  // 🗺 社会（拡充問題）
+  // ----------------------------------------------------
+  {
+    id: 'soc-g3-3',
+    subject: 'social',
+    grade: 3,
+    questionText: '火事のときに119番通報すると、かけつけてくれる場所はどこかな？',
+    options: ['消防署（しょうぼうしょ）', '警察署（けいさつしょ）', '市役所（しやくしょ）', '病院（びょういん）'],
+    correctAnswer: '消防署（しょうぼうしょ）',
+    explanation: '火事や救急のときは消防署の消防士さんや救急隊員が来てくれます。'
+  },
+  {
+    id: 'soc-g4-3',
+    subject: 'social',
+    grade: 4,
+    questionText: '川やダムの水をきれいにして、飲み水として水道に届ける施設はどこかな？',
+    options: ['浄水場（じょうすいじょう）', '下水処理場', '配水池', '清掃工場'],
+    correctAnswer: '浄水場（じょうすいじょう）',
+    explanation: '川の水を沈殿・ろ過・消毒して安全な水道水にする施設を「浄水場」といいます。'
+  },
+  {
+    id: 'soc-g5-3',
+    subject: 'social',
+    grade: 5,
+    questionText: '日本で最も米の生産量が多い、日本有数の穀倉地帯がある平野はどこかな？',
+    options: ['越後平野（えちごへいや）', '石狩平野', '関東平野', '濃尾平野'],
+    correctAnswer: '越後平野（えちごへいや）',
+    explanation: '新潟県の信濃川流域にある越後平野は、日本を代表する米どころです。'
+  },
+  {
+    id: 'soc-g6-3',
+    subject: 'social',
+    grade: 6,
+    questionText: '日本国憲法の三大基本原則に含まれないものはどれかな？',
+    options: ['貴族制度の保護', '国民主権', '基本的人権の尊重', '平和主義'],
+    correctAnswer: '貴族制度の保護',
+    explanation: '憲法の三大原則は「国民主権」「基本的人権の尊重」「平和主義」です。'
+  },
+
+  // ----------------------------------------------------
+  // 🔤 英語（拡充問題）
+  // ----------------------------------------------------
+  {
+    id: 'en-g1-3',
+    subject: 'english',
+    grade: 1,
+    questionText: '英語で「りんご」はどれかな？',
+    options: ['apple', 'orange', 'banana', 'grape'],
+    correctAnswer: 'apple',
+    explanation: 'りんごは英語で apple です。'
+  },
+  {
+    id: 'en-g2-3',
+    subject: 'english',
+    grade: 2,
+    questionText: '英語で「黄色（きいろ）」はどれかな？',
+    options: ['yellow', 'red', 'blue', 'green'],
+    correctAnswer: 'yellow',
+    explanation: 'きいろは英語で yellow です。'
+  },
+  {
+    id: 'en-g3-3',
+    subject: 'english',
+    grade: 3,
+    questionText: '「おはよう！」と朝にあいさつするときは英語で何というかな？',
+    options: ['Good morning', 'Good evening', 'Good night', 'Hello'],
+    correctAnswer: 'Good morning',
+    explanation: '朝のあいさつは Good morning です。'
+  },
+  {
+    id: 'en-g4-3',
+    subject: 'english',
+    grade: 4,
+    questionText: '英語で数字の「12」はどれかな？',
+    options: ['twelve', 'twenty', 'eleven', 'ten'],
+    correctAnswer: 'twelve',
+    explanation: '12 は twelve、20 は twenty です。'
+  },
+  {
+    id: 'en-g5-3',
+    subject: 'english',
+    grade: 5,
+    questionText: '「今何時ですか？」と時間をたずねる英語はどれかな？',
+    options: ['What time is it?', 'What day is it?', 'How are you?', 'Where are you?'],
+    correctAnswer: 'What time is it?',
+    explanation: '時間をたずねるときは「What time is it?」と聞きます。'
+  },
+  {
+    id: 'en-g6-3',
+    subject: 'english',
+    grade: 6,
+    questionText: '「私は犬が好きです。」を表す正しい英語はどれかな？',
+    options: ['I like dogs.', 'I am like dogs.', 'I have dog.', 'I dog like.'],
+    correctAnswer: 'I like dogs.',
+    explanation: '一般動詞 like を使って「I like dogs.」と表現します。'
   }
 ];
 

@@ -1,4 +1,5 @@
-import type { UserProfile, UserStats, ReviewItem, DailyReport, Subject, DailyGoal, QuizSession, SemesterSystem } from '../types';
+import type { UserProfile, UserStats, ReviewItem, DailyReport, Subject, DailyGoal, QuizSession, SemesterSystem, Question, QuestionSRSItem } from '../types';
+import { evaluateSRSAnswer, generateQuestionKey } from './spacedRepetition';
 
 const PROFILES_KEY = 'kids_learnquest_profiles_list';
 const ACTIVE_PROFILE_KEY = 'kids_learnquest_active_profile_id';
@@ -138,16 +139,41 @@ export const storage = {
               }
             });
 
+            // SRS（記憶定着）データ取得・マージ
+            const srsRes = await fetch(`/api/srs/${p.id}`);
+            const serverSRS: Record<string, QuestionSRSItem> = srsRes.ok ? await srsRes.json() : {};
+            const localSRSStr = localStorage.getItem(`kids_learnquest_srs_${p.id}`);
+            const localSRS: Record<string, QuestionSRSItem> = localSRSStr ? JSON.parse(localSRSStr) : {};
+            const mergedSRS: Record<string, QuestionSRSItem> = { ...serverSRS, ...localSRS };
+            // 両方に存在する場合はよりステージが進んでいる方または新しい解答を優先
+            Object.keys(serverSRS).forEach(k => {
+              if (localSRS[k]) {
+                const sItem = serverSRS[k];
+                const lItem = localSRS[k];
+                if (sItem.stage > lItem.stage || (sItem.stage === lItem.stage && sItem.totalAttempts > lItem.totalAttempts)) {
+                  mergedSRS[k] = sItem;
+                } else {
+                  mergedSRS[k] = lItem;
+                }
+              }
+            });
+
             // LocalStorage に即時キャッシュ保存
             localStorage.setItem(`kids_learnquest_stats_${p.id}`, JSON.stringify(finalStats));
             localStorage.setItem(`kids_learnquest_review_${p.id}`, JSON.stringify(mergedReviews));
             localStorage.setItem(`kids_learnquest_reports_${p.id}`, JSON.stringify(mergedReports));
+            localStorage.setItem(`kids_learnquest_srs_${p.id}`, JSON.stringify(mergedSRS));
 
             // サーバー側へ最新の最高進捗データを逆同期バックアップ保存
             fetch(`/api/stats/${p.id}`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(finalStats)
+            }).catch(() => {});
+            fetch(`/api/srs/${p.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(mergedSRS)
             }).catch(() => {});
 
             // 🎯 ノルマ設定(dailyGoal)は保護者変更のサーバー最新値を最優先（デフォルト ➔ ローカル ➔ サーバー）
@@ -334,6 +360,7 @@ export const storage = {
     localStorage.removeItem(`kids_learnquest_stats_${id}`);
     localStorage.removeItem(`kids_learnquest_review_${id}`);
     localStorage.removeItem(`kids_learnquest_reports_${id}`);
+    localStorage.removeItem(`kids_learnquest_srs_${id}`);
 
     if (this.getActiveProfileId() === id) {
       this.setActiveProfileId(updated[0].id);
@@ -433,6 +460,60 @@ export const storage = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(filtered)
     }).catch(err => console.warn("苦手ノートサーバー削除エラー:", err));
+  },
+
+  // 🧠 間隔反復記憶法 (SRS) データの取得
+  getSRSData(profileId?: string): Record<string, QuestionSRSItem> {
+    const targetId = profileId || storage.getActiveProfileId();
+    const key = `kids_learnquest_srs_${targetId}`;
+    const data = localStorage.getItem(key);
+    if (!data) return {};
+    try {
+      return JSON.parse(data);
+    } catch {
+      return {};
+    }
+  },
+
+  // 🧠 間隔反復記憶法 (SRS) データの保存
+  saveSRSData(srsData: Record<string, QuestionSRSItem>, profileId?: string): void {
+    const targetId = profileId || storage.getActiveProfileId();
+    const key = `kids_learnquest_srs_${targetId}`;
+
+    // 1. ローカル保存
+    localStorage.setItem(key, JSON.stringify(srsData));
+
+    // 2. サーバーDBへ非同期送信
+    if (typeof window !== 'undefined' || process.env.NODE_ENV === 'test') {
+      try {
+        fetch(`/api/srs/${targetId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(srsData)
+        }).catch(() => { /* オフライン/テスト時の無効URLを無視 */ });
+      } catch {
+        /* 無効URL等を安全にキャッチ */
+      }
+    }
+  },
+
+  // 🧠 解答結果に応じた1問のSRS更新
+  updateQuestionSRS(
+    question: Question,
+    isCorrect: boolean,
+    profileId?: string,
+    nowStr?: string
+  ): QuestionSRSItem {
+    const targetId = profileId || storage.getActiveProfileId();
+    const srsData = this.getSRSData(targetId);
+    const key = generateQuestionKey(question);
+    const currentItem = srsData[key];
+
+    const updatedItem = evaluateSRSAnswer(question, currentItem, isCorrect, nowStr);
+    srsData[key] = updatedItem;
+
+    this.saveSRSData(srsData, targetId);
+    return updatedItem;
   },
 
   // 学習レポート取得（プロファイル単位）
