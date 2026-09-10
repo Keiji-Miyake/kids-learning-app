@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 
-import type { Question, Subject, UserProfile } from '../types';
+import type { Question, Subject, UserProfile, SessionQuestionRecord } from '../types';
 import { sound } from '../utils/sound';
 import { haptics } from '../utils/haptics';
 import { markUnitCompleted } from '../data/progress';
+import { storage } from '../utils/storage';
 
 export interface ExamResult {
   score: number;
@@ -108,6 +109,27 @@ export const ExamScreen: React.FC<ExamScreenProps> = ({
     const result = calculateExamResult(correctCount, questions.length);
     setExamResult(result);
     setIsSubmitted(true);
+
+    // 📝 学習レポートに単元確認テストのセッションと問題詳細を保存
+    const timeSpentSeconds = Math.max(1, 600 - timeLeft);
+    const questionRecords: SessionQuestionRecord[] = questions.map((q, idx) => {
+      const userAns = userAnswers[idx] ?? '(無解答)';
+      const isCor = userAns === q.correctAnswer;
+      return {
+        questionId: q.id,
+        questionText: q.questionText,
+        selectedAnswer: userAns,
+        correctAnswer: q.correctAnswer,
+        isCorrect: isCor,
+        explanation: q.explanation
+      };
+    });
+
+    storage.addReportData(subject, correctCount, timeSpentSeconds, profile.id, questions.length, {
+      unitName,
+      sessionType: 'exam',
+      questionRecords
+    });
 
     if (result.passed && unitCode) {
       markUnitCompleted(profile.id, unitCode);

@@ -12,7 +12,7 @@ import { GoalAchievedModal } from './components/GoalAchievedModal';
 import AvatarPreview from './components/AvatarPreview';
 
 import { questions } from './data/questions';
-import type { UserStats, Subject, Question, UserProfile, QuestionSRSItem } from './types';
+import type { UserStats, Subject, Question, UserProfile, QuestionSRSItem, SessionQuestionRecord } from './types';
 import { storage } from './utils/storage';
 
 import { generateUniqueQuizSet } from './utils/quizSetGenerator';
@@ -156,7 +156,7 @@ export const App: React.FC = () => {
   };
 
 
-  const handleFinishQuiz = (correctCount: number, totalCount: number, wrongQuestionIds: string[]) => {
+  const handleFinishQuiz = (correctCount: number, totalCount: number, wrongQuestionIds: string[], questionRecords?: SessionQuestionRecord[]) => {
     const timeSpentSeconds = Math.floor((Date.now() - quizStartTime) / 1000);
 
     const reportsBefore = storage.getReports(activeProfile.id);
@@ -167,7 +167,12 @@ export const App: React.FC = () => {
     const isAchievedBefore = checkIsDailyGoalAchieved(goal, todayReportBefore);
 
     // アクティブなプロファイルに対して学習レポートおよびセッションを登録
-    storage.addReportData(activeSubject, correctCount, timeSpentSeconds, activeProfile.id, totalCount);
+    const unitName = activeUnit ? activeUnit.unitName : '全般（ランダム）';
+    storage.addReportData(activeSubject, correctCount, timeSpentSeconds, activeProfile.id, totalCount, {
+      unitName,
+      sessionType: 'quiz',
+      questionRecords
+    });
 
     const reportsAfter = storage.getReports(activeProfile.id);
     const todayReportAfter = reportsAfter.find(r => r.date === todayStr);

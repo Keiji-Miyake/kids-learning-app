@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import type { Question } from '../types';
+import type { Question, SessionQuestionRecord } from '../types';
 import { sound } from '../utils/sound';
 import { haptics } from '../utils/haptics';
 
 interface QuizScreenProps {
   questions: Question[];
-  onFinish: (correctCount: number, totalCount: number, wrongQuestionIds: string[]) => void;
+  onFinish: (correctCount: number, totalCount: number, wrongQuestionIds: string[], questionRecords?: SessionQuestionRecord[]) => void;
   onCancel: () => void;
 }
 
@@ -16,6 +16,7 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+  const [userAnswers, setUserAnswers] = useState<Record<number, string>>({});
   const [isAnswered, setIsAnswered] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
   const [timeLeft, setTimeLeft] = useState(30); // 1問30秒
@@ -55,6 +56,7 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
     sound.playWrong();
     haptics.vibrateWrong();
     setSelectedAnswer(''); // 空白は不正解扱い
+    setUserAnswers((prev) => ({ ...prev, [currentIndex]: '(時間切れ・無解答)' }));
     setIsAnswered(true);
     setWrongQuestionIds((prev) => [...prev, currentQuestion.id]);
   };
@@ -63,6 +65,7 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
     if (isAnswered) return;
 
     setSelectedAnswer(option);
+    setUserAnswers((prev) => ({ ...prev, [currentIndex]: option }));
     setIsAnswered(true);
 
     const isCorrect = option === currentQuestion.correctAnswer;
@@ -86,7 +89,23 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
       setSelectedAnswer(null);
       setIsAnswered(false);
     } else {
-      onFinish(correctCount, questions.length, wrongQuestionIds);
+      const updatedAnswers = { ...userAnswers };
+      if (selectedAnswer !== null && updatedAnswers[currentIndex] === undefined) {
+        updatedAnswers[currentIndex] = selectedAnswer;
+      }
+      const questionRecords: SessionQuestionRecord[] = questions.map((q, idx) => {
+        const ans = updatedAnswers[idx] ?? '(無解答)';
+        const isCor = !wrongQuestionIds.includes(q.id) && ans === q.correctAnswer;
+        return {
+          questionId: q.id,
+          questionText: q.questionText,
+          selectedAnswer: ans,
+          correctAnswer: q.correctAnswer,
+          isCorrect: isCor,
+          explanation: q.explanation
+        };
+      });
+      onFinish(correctCount, questions.length, wrongQuestionIds, questionRecords);
     }
   };
 
