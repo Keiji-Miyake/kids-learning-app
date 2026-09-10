@@ -38,6 +38,10 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onClose }) => 
   const [newParentPassword, setNewParentPassword] = useState<string>('');
   const [passwordChangeMsg, setPasswordChangeMsg] = useState<string>('');
 
+  // 📅 学習履歴詳細アコーディオン開閉・フィルター
+  const [expandedDate, setExpandedDate] = useState<string | null>(null);
+  const [onlyWrongFilter, setOnlyWrongFilter] = useState<boolean>(false);
+
   // 現在選択中プロファイル
   const targetProfile = profiles.find(p => p.id === selectedProfileId) || profiles[0];
 
@@ -202,6 +206,25 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onClose }) => 
     if (acc >= 80) return '#3cd184';
     if (acc >= 50) return '#ffb938';
     return '#ff5e62';
+  };
+
+  const formatDuration = (minutes: number, seconds?: number): string => {
+    const totalSec = seconds !== undefined ? seconds : Math.round(minutes * 60);
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    if (m === 0) return `${s}秒`;
+    if (s === 0) return `${m}分`;
+    return `${m}分${s}秒`;
+  };
+
+  const getSubjectBadge = (sub: Subject) => {
+    switch (sub) {
+      case 'math': return { label: '算数・数学', emoji: '🧮', color: '#ff5e62', bg: '#fee2e2' };
+      case 'japanese': return { label: '国語', emoji: '📖', color: '#d97706', bg: '#fef3c7' };
+      case 'science': return { label: '理科', emoji: '🧪', color: '#16a34a', bg: '#dcfce7' };
+      case 'social': return { label: '社会', emoji: '🗺', color: '#0284c7', bg: '#e0f2fe' };
+      case 'english': return { label: '英語', emoji: '🔤', color: '#7c3aed', bg: '#f3e8ff' };
+    }
   };
 
   if (!isParentUnlocked) {
@@ -435,9 +458,12 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onClose }) => 
           </div>
         </div>
 
-        {/* 履歴テーブル */}
+        {/* 履歴テーブル ＆ 学習履歴詳細アコーディオン */}
         <div className="dashboard-history-card card">
-          <h3 className="chart-title">📅 日々の記録</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+            <h3 className="chart-title" style={{ margin: 0 }}>📅 日々の記録 ＆ 学習履歴詳細</h3>
+            <span style={{ fontSize: '12px', color: '#64748b' }}>日付を押すと学習詳細が展開します</span>
+          </div>
           {reports.length === 0 ? (
             <p className="no-data-text">まだ学習データがありません。</p>
           ) : (
@@ -449,18 +475,203 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onClose }) => 
                     <th>解いた問題数</th>
                     <th>正解数</th>
                     <th>その日の正答率</th>
+                    <th>操作</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {[...reports].reverse().slice(0, 7).map((r, i) => {
+                  {[...reports].reverse().slice(0, 14).map((r, i) => {
                     const dailyAcc = r.questionsAttempted > 0 ? Math.round((r.questionsCorrect / r.questionsAttempted) * 100) : 0;
+                    const isExpanded = expandedDate === r.date;
+                    const dayTotalMinutes = Object.values(r.subjectMinutes || {}).reduce((acc, m) => acc + m, 0);
+
                     return (
-                      <tr key={i}>
-                        <td>{r.date}</td>
-                        <td>{r.questionsAttempted}問</td>
-                        <td>{r.questionsCorrect}問</td>
-                        <td style={{ color: getAccuracyColor(dailyAcc), fontWeight: 'bold' }}>{dailyAcc}%</td>
-                      </tr>
+                      <React.Fragment key={r.date || i}>
+                        <tr
+                          className={`history-summary-row ${isExpanded ? 'active-expanded' : ''}`}
+                          onClick={() => { sound.playClick(); setExpandedDate(isExpanded ? null : r.date); }}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          <td style={{ fontWeight: 'bold' }}>{r.date}</td>
+                          <td>{r.questionsAttempted}問</td>
+                          <td>{r.questionsCorrect}問</td>
+                          <td style={{ color: getAccuracyColor(dailyAcc), fontWeight: 'bold' }}>{dailyAcc}%</td>
+                          <td>
+                            <button
+                              type="button"
+                              className="detail-toggle-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                sound.playClick();
+                                setExpandedDate(isExpanded ? null : r.date);
+                              }}
+                            >
+                              {isExpanded ? '▲ 詳細を閉じる' : '▼ 詳細を見る'}
+                            </button>
+                          </td>
+                        </tr>
+
+                        {isExpanded && (
+                          <tr className="history-expanded-row">
+                            <td colSpan={5} style={{ padding: '0', background: '#f8fafc', borderBottom: '2px solid #cbd5e1' }}>
+                              <div className="history-detail-panel fade-in" style={{ padding: '16px 20px', textAlign: 'left' }}>
+                                {/* 日別サマリーヘッダー */}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', paddingBottom: '12px', borderBottom: '1px solid #e2e8f0', marginBottom: '14px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                                    <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#1e293b' }}>
+                                      ⏱️ その日の学習時間: <strong style={{ color: '#2563eb', fontSize: '15px' }}>{formatDuration(dayTotalMinutes)}</strong>
+                                    </span>
+                                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                                      {(Object.entries(r.subjectMinutes || {}) as [Subject, number][])
+                                        .filter(([_, min]) => min > 0)
+                                        .map(([sub, min]) => {
+                                          const badge = getSubjectBadge(sub);
+                                          return (
+                                            <span
+                                              key={sub}
+                                              style={{
+                                                fontSize: '11px',
+                                                fontWeight: 'bold',
+                                                color: badge.color,
+                                                background: badge.bg,
+                                                padding: '2px 8px',
+                                                borderRadius: '8px',
+                                                border: `1px solid ${badge.color}33`
+                                              }}
+                                            >
+                                              {badge.emoji} {badge.label}: {formatDuration(min)}
+                                            </span>
+                                          );
+                                        })}
+                                    </div>
+                                  </div>
+
+                                  {/* 不正解フィルター */}
+                                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 'bold', color: '#b91c1c', cursor: 'pointer', background: '#fee2e2', padding: '4px 10px', borderRadius: '8px' }}>
+                                    <input
+                                      type="checkbox"
+                                      checked={onlyWrongFilter}
+                                      onChange={(e) => setOnlyWrongFilter(e.target.checked)}
+                                      style={{ accentColor: '#dc2626', cursor: 'pointer' }}
+                                    />
+                                    <span>❌ 間違えた問題だけ表示</span>
+                                  </label>
+                                </div>
+
+                                {/* セッション一覧 */}
+                                {(!r.sessions || r.sessions.length === 0) ? (
+                                  <p style={{ color: '#64748b', fontSize: '13px', margin: '8px 0' }}>
+                                    ※ この日のセッション別詳細記録はありません（総問題数・正解数のみ記録されています）。
+                                  </p>
+                                ) : (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                                    {r.sessions.map((sess, sIdx) => {
+                                      const subBadge = getSubjectBadge(sess.subject);
+                                      const records = sess.questionRecords || [];
+                                      const filteredRecords = onlyWrongFilter
+                                        ? records.filter(q => !q.isCorrect)
+                                        : records;
+
+                                      if (onlyWrongFilter && filteredRecords.length === 0 && records.length > 0) {
+                                        return null;
+                                      }
+
+                                      const timeStr = sess.timestamp ? new Date(sess.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+
+                                      return (
+                                        <div
+                                          key={sess.id || sIdx}
+                                          className="session-card"
+                                          style={{
+                                            background: '#ffffff',
+                                            border: '1.5px solid #e2e8f0',
+                                            borderRadius: '12px',
+                                            padding: '14px 16px',
+                                            boxShadow: '0 2px 6px rgba(0,0,0,0.03)'
+                                          }}
+                                        >
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '10px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                              <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#64748b', background: '#f1f5f9', padding: '2px 6px', borderRadius: '6px' }}>
+                                                🕒 {timeStr || `回 #${sIdx + 1}`}
+                                              </span>
+                                              <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#ffffff', background: sess.sessionType === 'exam' ? '#8b5cf6' : '#3b82f6', padding: '2px 8px', borderRadius: '12px' }}>
+                                                {sess.sessionType === 'exam' ? '📝 単元確認テスト' : '🎯 クイズ'}
+                                              </span>
+                                              <span style={{ fontSize: '13px', fontWeight: 'bold', color: subBadge.color }}>
+                                                {subBadge.emoji} {subBadge.label}
+                                              </span>
+                                              <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#334155' }}>
+                                                単元: <strong>{sess.unitName || '全般（ランダム）'}</strong>
+                                              </span>
+                                            </div>
+
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '12px' }}>
+                                              <span style={{ color: '#475569' }}>
+                                                ⏱️ {formatDuration(sess.durationMinutes, sess.durationSeconds)}
+                                              </span>
+                                              <span style={{ fontWeight: 'bold', color: sess.questionsCorrect === sess.questionsAttempted ? '#16a34a' : '#2563eb' }}>
+                                                {sess.questionsCorrect} / {sess.questionsAttempted} 問正解
+                                              </span>
+                                            </div>
+                                          </div>
+
+                                          {/* 問題リスト */}
+                                          {records.length === 0 ? (
+                                            <p style={{ fontSize: '12px', color: '#94a3b8', margin: '4px 0 0 0' }}>
+                                              ※ このセッションの問題別詳細データはありません。
+                                            </p>
+                                          ) : (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                              {filteredRecords.map((qRec, qIdx) => (
+                                                <div
+                                                  key={qRec.questionId || qIdx}
+                                                  style={{
+                                                    background: qRec.isCorrect ? '#f0fdf4' : '#fef2f2',
+                                                    border: `1.5px solid ${qRec.isCorrect ? '#86efac' : '#fca5a5'}`,
+                                                    borderRadius: '8px',
+                                                    padding: '10px 12px',
+                                                    fontSize: '13px'
+                                                  }}
+                                                >
+                                                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                                                    <span style={{ fontSize: '16px', lineHeight: 1 }}>
+                                                      {qRec.isCorrect ? '⭕' : '❌'}
+                                                    </span>
+                                                    <div style={{ flex: 1 }}>
+                                                      <div style={{ fontWeight: 'bold', color: '#1e293b', marginBottom: '4px' }}>
+                                                        問{qIdx + 1}: {qRec.questionText}
+                                                      </div>
+                                                      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', fontSize: '12px', marginTop: '4px' }}>
+                                                        <span>
+                                                          お子様の回答: <strong style={{ color: qRec.isCorrect ? '#16a34a' : '#dc2626' }}>{qRec.selectedAnswer}</strong>
+                                                        </span>
+                                                        {!qRec.isCorrect && (
+                                                          <span style={{ color: '#16a34a', fontWeight: 'bold' }}>
+                                                            ➔ 正解: {qRec.correctAnswer}
+                                                          </span>
+                                                        )}
+                                                      </div>
+                                                      {qRec.explanation && (
+                                                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '6px', background: '#ffffff', padding: '6px 10px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                                                          💡 解説: {qRec.explanation}
+                                                        </div>
+                                                      )}
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
                     );
                   })}
                 </tbody>

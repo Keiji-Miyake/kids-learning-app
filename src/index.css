@@ -2904,3 +2904,51 @@ body {
 .text-success { color: #10b981 !important; }
 .text-danger { color: #ef4444 !important; }
 
+/* 📅 保護者管理画面 学習履歴詳細アコーディオン スタイル */
+.history-summary-row {
+  transition: background-color 0.2s ease;
+}
+
+.history-summary-row:hover {
+  background-color: #f1f5f9;
+}
+
+.history-summary-row.active-expanded {
+  background-color: #eff6ff !important;
+}
+
+.detail-toggle-btn {
+  background: #3b82f6;
+  color: #ffffff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.detail-toggle-btn:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+}
+
+.history-expanded-row {
+  background: #f8fafc;
+}
+
+.history-detail-panel {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.session-card {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.session-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06) !important;
+}
+
+
