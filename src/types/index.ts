@@ -82,12 +82,26 @@ export interface ReviewItem {
   addedAt: string;
 }
 
+export interface SessionQuestionRecord {
+  questionId: string;
+  questionText: string;
+  selectedAnswer: string;  // お子様が選んだ解答
+  correctAnswer: string;   // 正解
+  isCorrect: boolean;      // 正誤判定 (true: ◯, false: ✕)
+  explanation: string;     // 解説
+}
+
 export interface QuizSession {
+  id?: string;             // セッションID
   subject: Subject;
+  unitName?: string;       // 単元名 (例:「大きな数」「全般（ランダム）」)
+  sessionType?: 'quiz' | 'exam'; // クイズ(5問) または 単元確認テスト(10問)
   questionsAttempted: number;
   questionsCorrect: number;
   durationMinutes: number;
+  durationSeconds?: number;// 正確な秒数
   timestamp: string;
+  questionRecords?: SessionQuestionRecord[]; // 各問題の詳細履歴
 }
 
 export interface DailyReport {
