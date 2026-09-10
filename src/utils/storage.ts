@@ -1,4 +1,4 @@
-import type { UserProfile, UserStats, ReviewItem, DailyReport, Subject, DailyGoal, QuizSession, SemesterSystem, Question, QuestionSRSItem } from '../types';
+import type { UserProfile, UserStats, ReviewItem, DailyReport, Subject, DailyGoal, QuizSession, SemesterSystem, Question, QuestionSRSItem, SessionQuestionRecord } from '../types';
 import { evaluateSRSAnswer, generateQuestionKey } from './spacedRepetition';
 
 const PROFILES_KEY = 'kids_learnquest_profiles_list';
@@ -535,7 +535,12 @@ export const storage = {
     correct: boolean | number,
     timeSpentSeconds: number,
     profileId?: string,
-    totalAttempted?: number
+    totalAttempted?: number,
+    sessionDetails?: {
+      unitName?: string;
+      sessionType?: 'quiz' | 'exam';
+      questionRecords?: SessionQuestionRecord[];
+    }
   ): void {
     const targetId = profileId || storage.getActiveProfileId();
     const key = `kids_learnquest_reports_${targetId}`;
@@ -588,11 +593,16 @@ export const storage = {
       todayReport.sessions = [];
     }
     const session: QuizSession = {
+      id: `sess-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       subject: subjectKey,
+      unitName: sessionDetails?.unitName || '全般（ランダム）',
+      sessionType: sessionDetails?.sessionType || 'quiz',
       questionsAttempted: attempted,
       questionsCorrect: correctNum,
       durationMinutes,
-      timestamp: new Date().toISOString()
+      durationSeconds: timeSpentSeconds,
+      timestamp: new Date().toISOString(),
+      questionRecords: sessionDetails?.questionRecords || []
     };
     todayReport.sessions.push(session);
 
