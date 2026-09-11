@@ -32,6 +32,7 @@ export const App: React.FC = () => {
   const [stats, setStats] = useState<UserStats>(storage.getStats(activeProfile.id));
   const [currentScreen, setCurrentScreen] = useState<string>('home'); // home | quiz | result | shop | collection | review | dashboard
   const [showProfileModal, setShowProfileModal] = useState<boolean>(true);
+  const [previousScreenBeforeDashboard, setPreviousScreenBeforeDashboard] = useState<string | null>(null);
   const [showGoalAchievedModal, setShowGoalAchievedModal] = useState<boolean>(false);
   const [gridCols, setGridCols] = useState<'auto' | 'cols-2' | 'cols-3'>('cols-3');
 
@@ -542,7 +543,15 @@ export const App: React.FC = () => {
 
         {currentScreen === 'dashboard' && (
           <ParentDashboard
-            onClose={() => setCurrentScreen('home')}
+            onClose={() => {
+              if (previousScreenBeforeDashboard === 'profileModal') {
+                setShowProfileModal(true);
+                setCurrentScreen('home');
+              } else {
+                setCurrentScreen('home');
+              }
+              setPreviousScreenBeforeDashboard(null);
+            }}
           />
         )}
       </main>
@@ -562,6 +571,11 @@ export const App: React.FC = () => {
         <ProfileSelectorModal
           onSelectProfile={handleSelectProfile}
           onClose={() => setShowProfileModal(false)}
+          onOpenDashboard={() => {
+            setShowProfileModal(false);
+            setPreviousScreenBeforeDashboard('profileModal');
+            setCurrentScreen('dashboard');
+          }}
         />
       )}
 

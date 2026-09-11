@@ -9,6 +9,7 @@ import AvatarPreview from './AvatarPreview';
 interface ProfileSelectorModalProps {
   onSelectProfile: (profile: UserProfile) => void;
   onClose: () => void;
+  onOpenDashboard?: () => void;
 }
 
 export const canDeleteProfile = (activeId: string, targetId: string, totalProfilesCount: number): boolean => {
@@ -29,7 +30,8 @@ export const canAddProfile = (inputPassword: string): boolean => {
 
 export const ProfileSelectorModal: React.FC<ProfileSelectorModalProps> = ({
   onSelectProfile,
-  onClose
+  onClose,
+  onOpenDashboard
 }) => {
   const [profiles, setProfiles] = useState<UserProfile[]>(storage.getProfiles());
   const [activeId, setActiveId] = useState<string>(storage.getActiveProfileId());
@@ -261,7 +263,34 @@ export const ProfileSelectorModal: React.FC<ProfileSelectorModalProps> = ({
       <div className="modal-content profile-modal slide-up">
         <div className="modal-header">
           <h2>👨‍👩‍👧‍👦 家族のプロファイル切替＆設定</h2>
-          <button className="close-btn" onClick={() => { sound.playClick(); onClose(); }}>✕</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {onOpenDashboard && (
+              <button
+                type="button"
+                className="direct-dashboard-btn"
+                onClick={() => {
+                  sound.playClick();
+                  onOpenDashboard();
+                }}
+                style={{
+                  background: '#eff6ff',
+                  border: '1.5px solid #3b82f6',
+                  color: '#1d4ed8',
+                  padding: '6px 12px',
+                  borderRadius: '12px',
+                  fontSize: '13px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                <span>⚙️</span> 保護者管理画面へ
+              </button>
+            )}
+            <button className="close-btn" onClick={() => { sound.playClick(); onClose(); }}>✕</button>
+          </div>
         </div>
 
         {/* 1. プロファイル一覧表示モード */}
