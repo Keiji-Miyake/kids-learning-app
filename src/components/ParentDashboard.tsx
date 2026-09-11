@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { storage } from '../utils/storage';
-import type { DailyReport, Subject, UserProfile, DailyGoal, WeeklySchedule, DayOfWeek } from '../types';
+import type { DailyReport, Subject, UserProfile, DailyGoal, WeeklySchedule, DayOfWeek, SemesterSystem } from '../types';
 import { sound } from '../utils/sound';
 import { getGoalProgress, getEffectiveDailyGoal, DAY_OF_WEEK_LABELS } from '../utils/goalEvaluator';
 import { getSRSStats } from '../utils/spacedRepetition';
 import { GoalSettingWizard } from './GoalSettingWizard';
+import AvatarPreview from './AvatarPreview';
+import { calculateGradeFromBirthDate } from '../utils/gradeCalculator';
 
 
 interface ParentDashboardProps {
@@ -41,6 +43,122 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onClose }) => 
   // 📅 学習履歴詳細アコーディオン開閉・フィルター
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
   const [onlyWrongFilter, setOnlyWrongFilter] = useState<boolean>(false);
+
+  // メインナビゲーションタブ: 'report' | 'goal' | 'profiles' | 'settings'
+  const [activeTab, setActiveTab] = useState<'report' | 'goal' | 'profiles' | 'settings'>('report');
+
+  // プロフィール一元管理用ステート
+  const [editingProfile, setEditingProfile] = useState<UserProfile | null>(null);
+  const [isAddingProfile, setIsAddingProfile] = useState<boolean>(false);
+  const [editName, setEditName] = useState<string>('');
+  const [editEmoji, setEditEmoji] = useState<string>('👦');
+  const [editBirthDate, setEditBirthDate] = useState<string>('');
+  const [editGrade, setEditGrade] = useState<number>(3);
+  const [editSemester, setEditSemester] = useState<SemesterSystem>('3-term');
+  const [editPin, setEditPin] = useState<string>('');
+  const [profileActionMsg, setProfileActionMsg] = useState<string>('');
+
+  const avatarOptions = [
+    '👦', '👧', '👶', '🧑‍🚀', '👩‍🚀', '🤖', '🐱', '🐶',
+    '🦊', '🦁', '🐯', '🐼', '🐰', '🦄', '🐲', '🚀', '👑', '⭐', '⚽', '🎨'
+  ];
+
+  const handleOpenEditProfile = (p: UserProfile) => {
+    sound.playClick();
+    setEditingProfile(p);
+    setIsAddingProfile(false);
+    setEditName(p.name);
+    setEditEmoji(p.avatarEmoji);
+    setEditBirthDate(p.birthDate || '');
+    setEditGrade(p.grade || 3);
+    setEditSemester(p.semesterSystem || '3-term');
+    setEditPin(p.pin || '');
+    setProfileActionMsg('');
+  };
+
+  const handleOpenAddProfile = () => {
+    sound.playClick();
+    setEditingProfile(null);
+    setIsAddingProfile(true);
+    setEditName('');
+    setEditEmoji('👦');
+    setEditBirthDate('');
+    setEditGrade(3);
+    setEditSemester('3-term');
+    setEditPin('');
+    setProfileActionMsg('');
+  };
+
+  const handleBirthDateChange = (bDate: string) => {
+    setEditBirthDate(bDate);
+    if (bDate) {
+      const calcGrade = calculateGradeFromBirthDate(bDate);
+      if (calcGrade) {
+        setEditGrade(calcGrade);
+      }
+    }
+  };
+
+  const handleSaveEditProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProfile || !editName.trim()) return;
+    sound.playClick();
+
+    const updated: UserProfile = {
+      ...editingProfile,
+      name: editName.trim(),
+      avatarEmoji: editEmoji,
+      birthDate: editBirthDate.trim() || undefined,
+      grade: editGrade,
+      semesterSystem: editSemester,
+      pin: editPin.trim() || undefined
+    };
+
+    storage.updateProfile(updated);
+    setProfiles(storage.getProfiles());
+    setEditingProfile(null);
+    setProfileActionMsg(`✅ ${updated.name} さんのプロフィールを更新しました！`);
+    setTimeout(() => setProfileActionMsg(''), 4000);
+  };
+
+  const handleSaveAddProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editName.trim()) return;
+    sound.playClick();
+
+    storage.addProfile(
+      editName.trim(),
+      editEmoji,
+      editGrade,
+      editPin.trim() || undefined,
+      undefined,
+      editSemester,
+      editBirthDate.trim() || undefined
+    );
+
+    setProfiles(storage.getProfiles());
+    setIsAddingProfile(false);
+    setProfileActionMsg(`✅ 新しいプレイヤー「${editName.trim()}」を追加しました！`);
+    setTimeout(() => setProfileActionMsg(''), 4000);
+  };
+
+  const handleDeleteProfile = (p: UserProfile) => {
+    if (profiles.length <= 1) {
+      alert('プロファイルが1つのため削除できません。');
+      return;
+    }
+    if (confirm(`「${p.name}」さんのプロファイルを削除してもよろしいですか？`)) {
+      sound.playClick();
+      storage.deleteProfile(p.id);
+      const updated = storage.getProfiles();
+      setProfiles(updated);
+      if (selectedProfileId === p.id) {
+        setSelectedProfileId(updated[0].id);
+      }
+      setProfileActionMsg(`🗑️ ${p.name} さんのプロファイルを削除しました。`);
+      setTimeout(() => setProfileActionMsg(''), 4000);
+    }
+  };
 
   // 現在選択中プロファイル
   const targetProfile = profiles.find(p => p.id === selectedProfileId) || profiles[0];
@@ -272,55 +390,101 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onClose }) => 
     <div className="dashboard-container fade-in">
 
       <div className="dashboard-header">
-        <h2 className="dashboard-title">📊 保護者向け学習レポート ＆ ノルマ管理</h2>
-        <p className="dashboard-subtitle">お子様ごとの進捗確認と、1日の目標ノルマ・ご褒美を設定できます。</p>
+        <h2 className="dashboard-title">📊 保護者向け学習レポート ＆ 管理エリア</h2>
+        <p className="dashboard-subtitle">お子様ごとの進捗確認、1日のノルマ設定、プロフィール編集、各種設定を行えます。</p>
       </div>
 
-      {/* 対象のお子様（プロファイル）の切り替えタブ */}
-      <div className="dashboard-profile-tabs">
-        {profiles.map(p => (
-          <button
-            key={p.id}
-            className={`dashboard-tab-btn ${p.id === selectedProfileId ? 'active' : ''}`}
-            onClick={() => { sound.playClick(); setSelectedProfileId(p.id); }}
-          >
-            <span className="tab-emoji">{p.avatarEmoji}</span>
-            <span className="tab-name">{p.name} さんのデータ</span>
-          </button>
-        ))}
-      </div>
-
-      {/* 画面内クイックジャンプ */}
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', margin: '0 0 16px 0', alignItems: 'center' }}>
-        <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 'bold' }}>クイック移動:</span>
+      {/* 🧭 メインナビゲーションタブ */}
+      <div className="parent-nav-tabs" style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap', borderBottom: '2px solid #e2e8f0', paddingBottom: '12px' }}>
         <button
           type="button"
-          onClick={() => {
-            sound.playClick();
-            document.getElementById('learning-history-section')?.scrollIntoView({ behavior: 'smooth' });
-          }}
-          style={{
-            padding: '6px 14px',
-            fontSize: '12px',
-            fontWeight: 'bold',
-            borderRadius: '20px',
-            border: '1.5px solid #3b82f6',
-            background: '#eff6ff',
-            color: '#1d4ed8',
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px'
-          }}
+          className={`nav-tab-btn ${activeTab === 'report' ? 'active' : ''}`}
+          onClick={() => { sound.playClick(); setActiveTab('report'); }}
+          style={{ padding: '10px 18px', borderRadius: '12px', fontWeight: 'bold', fontSize: '15px' }}
         >
-          <span>📅</span>
-          <span>学習履歴詳細・日々の記録へスクロール ↓</span>
+          📊 今日の進捗＆レポート
+        </button>
+        <button
+          type="button"
+          className={`nav-tab-btn ${activeTab === 'goal' ? 'active' : ''}`}
+          onClick={() => { sound.playClick(); setActiveTab('goal'); }}
+          style={{ padding: '10px 18px', borderRadius: '12px', fontWeight: 'bold', fontSize: '15px' }}
+        >
+          🎯 ノルマ・ご褒美設定
+        </button>
+        <button
+          type="button"
+          className={`nav-tab-btn ${activeTab === 'profiles' ? 'active' : ''}`}
+          onClick={() => { sound.playClick(); setActiveTab('profiles'); }}
+          style={{ padding: '10px 18px', borderRadius: '12px', fontWeight: 'bold', fontSize: '15px' }}
+        >
+          👥 プロフィール管理
+        </button>
+        <button
+          type="button"
+          className={`nav-tab-btn ${activeTab === 'settings' ? 'active' : ''}`}
+          onClick={() => { sound.playClick(); setActiveTab('settings'); }}
+          style={{ padding: '10px 18px', borderRadius: '12px', fontWeight: 'bold', fontSize: '15px' }}
+        >
+          ⚙️ 保護者設定
         </button>
       </div>
 
+      {/* レポートまたはノルマ設定時に対象お子様（プロファイル）の切り替えタブを表示 */}
+      {(activeTab === 'report' || activeTab === 'goal') && (
+        <div className="dashboard-profile-tabs">
+          {profiles.map(p => (
+            <button
+              key={p.id}
+              className={`dashboard-tab-btn ${p.id === selectedProfileId ? 'active' : ''}`}
+              onClick={() => { sound.playClick(); setSelectedProfileId(p.id); }}
+            >
+              <span className="tab-emoji">{p.avatarEmoji}</span>
+              <span className="tab-name">{p.name} さんのデータ</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* 画面内クイックジャンプ（レポートタブ時） */}
+      {activeTab === 'report' && (
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', margin: '0 0 16px 0', alignItems: 'center' }}>
+          <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 'bold' }}>クイック移動:</span>
+          <button
+            type="button"
+            onClick={() => {
+              sound.playClick();
+              document.getElementById('learning-history-section')?.scrollIntoView({ behavior: 'smooth' });
+            }}
+            style={{
+              padding: '6px 14px',
+              fontSize: '12px',
+              fontWeight: 'bold',
+              borderRadius: '20px',
+              border: '1.5px solid #3b82f6',
+              background: '#eff6ff',
+              color: '#1d4ed8',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            <span>📅</span>
+            <span>学習履歴詳細・日々の記録へスクロール ↓</span>
+          </button>
+        </div>
+      )}
+
       <div className="dashboard-grid">
-        {/* 🎯 1日のノルマ＆ご褒美設定ウィザード */}
-        <GoalSettingWizard profile={targetProfile} onSave={handleSaveGoal} />
+        {/* 🎯 1日のノルマ＆ご褒美設定ウィザード（ノルマタブ時） */}
+        {activeTab === 'goal' && (
+          <GoalSettingWizard profile={targetProfile} onSave={handleSaveGoal} />
+        )}
+
+        {/* 📊 レポートタブの内容 */}
+        {activeTab === 'report' && (
+          <>
 
         {/* 🌟 本日の目標進捗可視化カード */}
         <div className="card" style={{ padding: '20px', borderRadius: '16px', background: '#f0fdf4', border: '2px solid #86efac', marginBottom: '20px' }}>
@@ -799,10 +963,232 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onClose }) => 
             </div>
           )}
         </div>
+        </>
+      )}
 
-        {/* 🔑 保護者パスワード変更カード */}
+      {/* 👥 家族・プロフィール一元管理タブ */}
+      {activeTab === 'profiles' && (
+        <div className="card fade-in" style={{ padding: '24px', borderRadius: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+            <div>
+              <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', marginBottom: '4px' }}>
+                👥 お子様・プロフィール一覧
+              </h3>
+              <p style={{ fontSize: '13px', color: '#64748b' }}>
+                全プレイヤーの登録情報（名前・学年・生年月日・暗証番号）を確認・編集できます。
+              </p>
+            </div>
+            <button
+              type="button"
+              className="start-btn"
+              onClick={handleOpenAddProfile}
+              style={{ padding: '8px 16px', fontSize: '14px' }}
+            >
+              ＋ 新しいプレイヤーを追加
+            </button>
+          </div>
 
-        <form className="card password-change-card" onSubmit={handleChangeParentPassword} style={{ marginTop: '20px', padding: '24px' }}>
+          {profileActionMsg && (
+            <div style={{ padding: '10px 16px', background: '#dcfce7', color: '#15803d', borderRadius: '10px', marginBottom: '16px', fontWeight: 'bold', fontSize: '14px' }}>
+              {profileActionMsg}
+            </div>
+          )}
+
+          {/* 編集または新規追加フォーム */}
+          {(editingProfile || isAddingProfile) && (
+            <form
+              className="card fade-in"
+              onSubmit={editingProfile ? handleSaveEditProfile : handleSaveAddProfile}
+              style={{ background: '#f8fafc', border: '2px solid #3b82f6', borderRadius: '16px', padding: '20px', marginBottom: '24px' }}
+            >
+              <h4 style={{ fontSize: '16px', fontWeight: '800', color: '#1e3a8a', marginBottom: '16px' }}>
+                {editingProfile ? `✏️ ${editingProfile.name} さんの情報を編集` : '➕ 新しいプレイヤーの追加'}
+              </h4>
+
+              <div className="form-group">
+                <label htmlFor="dash-edit-prof-name">おなまえ：</label>
+                <input
+                  id="dash-edit-prof-name"
+                  aria-label="おなまえ"
+                  type="text"
+                  className="profile-input"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  maxLength={10}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="dash-edit-prof-birthdate">生年月日（任意）：</label>
+                <input
+                  id="dash-edit-prof-birthdate"
+                  aria-label="生年月日"
+                  type="date"
+                  className="profile-input"
+                  value={editBirthDate}
+                  onChange={(e) => handleBirthDateChange(e.target.value)}
+                />
+                <span className="form-hint" style={{ fontSize: '12px', color: '#64748b' }}>※生年月日を入力すると学年が自動計算され、毎年4月に自動進級します。</span>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="dash-edit-prof-grade">がくねん（学年）：</label>
+                <select
+                  id="dash-edit-prof-grade"
+                  aria-label="学年"
+                  className="profile-input"
+                  value={editGrade}
+                  onChange={(e) => setEditGrade(Number(e.target.value))}
+                >
+                  <option value={1}>小学1年</option>
+                  <option value={2}>小学2年</option>
+                  <option value={3}>小学3年</option>
+                  <option value={4}>小学4年</option>
+                  <option value={5}>小学5年</option>
+                  <option value={6}>小学6年</option>
+                  <option value={7}>中学1年</option>
+                  <option value={8}>中学2年</option>
+                  <option value={9}>中学3年</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="dash-edit-prof-semester">学期制：</label>
+                <select
+                  id="dash-edit-prof-semester"
+                  aria-label="学期制"
+                  className="profile-input"
+                  value={editSemester}
+                  onChange={(e) => setEditSemester(e.target.value as SemesterSystem)}
+                >
+                  <option value="3-term">3学期制（1学期・2学期・3学期）</option>
+                  <option value="2-term">2学期制（前期・後期）</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="dash-edit-prof-pin">暗証番号PIN（任意・4桁数字）：</label>
+                <input
+                  id="dash-edit-prof-pin"
+                  aria-label="暗証番号"
+                  type="password"
+                  maxLength={4}
+                  className="profile-input"
+                  placeholder="未設定の場合は空欄"
+                  value={editPin}
+                  onChange={(e) => setEditPin(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>アイコンを選ぶ：</label>
+                <div className="emoji-picker" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', margin: '8px 0' }}>
+                  {avatarOptions.map(emoji => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      className={`emoji-btn ${editEmoji === emoji ? 'selected' : ''}`}
+                      onClick={() => { sound.playClick(); setEditEmoji(emoji); }}
+                      style={{ fontSize: '24px', padding: '6px 10px', borderRadius: '8px', border: editEmoji === emoji ? '2px solid #3b82f6' : '1px solid #cbd5e1', background: editEmoji === emoji ? '#eff6ff' : '#ffffff', cursor: 'pointer' }}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
+                <button type="submit" className="start-btn" style={{ flex: 1 }}>
+                  保存する 💾
+                </button>
+                <button
+                  type="button"
+                  className="cancel-btn"
+                  onClick={() => {
+                    setEditingProfile(null);
+                    setIsAddingProfile(false);
+                  }}
+                >
+                  キャンセル ✕
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* プロファイルカード一覧 */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
+            {profiles.map(p => {
+              const stats = storage.getStats(p.id);
+              const gradeLabel = (p.grade || 3) <= 6 ? `小学${p.grade || 3}年` : `中学${(p.grade || 3) - 6}年`;
+
+              return (
+                <div
+                  key={p.id}
+                  className="card"
+                  style={{
+                    padding: '16px',
+                    borderRadius: '14px',
+                    border: p.id === selectedProfileId ? '2px solid #3b82f6' : '1px solid #e2e8f0',
+                    background: '#ffffff',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between'
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                      <div style={{ width: '48px', height: '48px' }}>
+                        <AvatarPreview equipped={stats.equippedAvatar} profileEmoji={p.avatarEmoji} size="sm" />
+                      </div>
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', color: '#1e293b' }}>
+                          {p.name}
+                        </h4>
+                        <span style={{ fontSize: '12px', color: '#64748b' }}>
+                          Lv.{stats.level} / 🪙 {stats.coins}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div style={{ fontSize: '13px', color: '#475569', display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '12px' }}>
+                      <div>🎓 <strong>学年:</strong> {gradeLabel}</div>
+                      <div>📅 <strong>生年月日:</strong> {p.birthDate ? p.birthDate : '未設定'}</div>
+                      <div>🏫 <strong>学期制:</strong> {p.semesterSystem === '2-term' ? '2学期制' : '3学期制'}</div>
+                      <div>🔒 <strong>暗証番号:</strong> {p.pin ? '設定あり (PIN保護)' : 'なし (だれでも選択可能)'}</div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px', borderTop: '1px solid #f1f5f9', paddingTop: '12px' }}>
+                    <button
+                      type="button"
+                      className="profile-edit-btn"
+                      onClick={() => handleOpenEditProfile(p)}
+                      style={{ flex: 1, padding: '8px', fontSize: '13px' }}
+                    >
+                      編集 ✏️
+                    </button>
+                    {profiles.length > 1 && (
+                      <button
+                        type="button"
+                        className="delete-profile-btn"
+                        onClick={() => handleDeleteProfile(p)}
+                        style={{ padding: '8px 12px', fontSize: '13px' }}
+                      >
+                        🗑️
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ⚙️ 保護者設定タブ */}
+      {activeTab === 'settings' && (
+        <form className="card password-change-card fade-in" onSubmit={handleChangeParentPassword} style={{ padding: '24px', borderRadius: '16px' }}>
           <h3 className="chart-title" style={{ fontSize: '16px', fontWeight: '800', marginBottom: '8px' }}>🔑 保護者用マスターパスワードの変更</h3>
           <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '16px' }}>
             お子様に推測されにくい、保護者の方だけがわかる新しいパスワードを設定できます。
@@ -824,6 +1210,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onClose }) => 
             {passwordChangeMsg && <span style={{ color: '#10b981', fontWeight: 'bold', fontSize: '13px' }}>{passwordChangeMsg}</span>}
           </div>
         </form>
+      )}
       </div>
 
 
