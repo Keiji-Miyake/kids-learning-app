@@ -62,6 +62,7 @@ export interface UserProfile {
   id: string;
   name: string;
   avatarEmoji: string;
+  birthDate?: string; // 生年月日 YYYY-MM-DD (例: "2017-05-15")
   grade?: number; // 1〜9 (小1〜中3) のデフォルト学年設定
   pin?: string; // 4桁のPINコード（暗証番号）によるアカウント保護
   semesterSystem?: SemesterSystem; // 学期制設定 ('3-term' | '2-term')
@@ -94,6 +95,7 @@ export interface SessionQuestionRecord {
 export interface QuizSession {
   id?: string;             // セッションID
   subject: Subject;
+  grade?: number;          // 解いた問題の学年 (1〜9)
   unitName?: string;       // 単元名 (例:「大きな数」「全般（ランダム）」)
   sessionType?: 'quiz' | 'exam'; // クイズ(5問) または 単元確認テスト(10問)
   questionsAttempted: number;

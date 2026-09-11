@@ -102,8 +102,10 @@ app.post('/api/profiles', (req, res) => {
       id: db.profiles[existingIdx].id,
       name: newProfile.name,
       avatarEmoji: newProfile.avatarEmoji,
+      birthDate: newProfile.birthDate !== undefined ? newProfile.birthDate : db.profiles[existingIdx].birthDate,
       grade: newProfile.grade,
       pin: newProfile.pin,
+      semesterSystem: newProfile.semesterSystem || db.profiles[existingIdx].semesterSystem,
       dailyGoal: newProfile.dailyGoal || db.profiles[existingIdx].dailyGoal
     };
     if (newProfile.stats) {
@@ -115,8 +117,10 @@ app.post('/api/profiles', (req, res) => {
       id: newProfile.id,
       name: newProfile.name,
       avatarEmoji: newProfile.avatarEmoji,
+      birthDate: newProfile.birthDate,
       grade: newProfile.grade,
       pin: newProfile.pin,
+      semesterSystem: newProfile.semesterSystem,
       dailyGoal: newProfile.dailyGoal
     });
     db.stats[newProfile.id] = newProfile.stats;
@@ -139,8 +143,10 @@ app.put('/api/profiles', (req, res) => {
       id: updated.id,
       name: updated.name,
       avatarEmoji: updated.avatarEmoji,
+      birthDate: updated.birthDate !== undefined ? updated.birthDate : db.profiles[idx].birthDate,
       grade: updated.grade,
       pin: updated.pin,
+      semesterSystem: updated.semesterSystem || db.profiles[idx].semesterSystem,
       dailyGoal: updated.dailyGoal || db.profiles[idx].dailyGoal
     };
     writeDB(db);
