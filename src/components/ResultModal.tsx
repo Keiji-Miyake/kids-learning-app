@@ -163,7 +163,10 @@ export const ResultModal: React.FC<ResultModalProps> = ({
               {srsUpdates.map((item, idx) => {
                 let badgeColor = '#3b82f6';
                 let badgeText = '';
-                if (item.isMastered) {
+                if (item.intervalDays === 1) {
+                  badgeColor = '#dc2626';
+                  badgeText = '🔄 明日もう一度復習！';
+                } else if (item.isMastered) {
                   badgeColor = '#ca8a04';
                   badgeText = '👑 完全マスター達成！（ノルマ卒業）';
                 } else if (item.stage === 1) {
