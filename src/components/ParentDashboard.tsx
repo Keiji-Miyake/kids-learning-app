@@ -290,6 +290,34 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onClose }) => 
         ))}
       </div>
 
+      {/* 画面内クイックジャンプ */}
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', margin: '0 0 16px 0', alignItems: 'center' }}>
+        <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 'bold' }}>クイック移動:</span>
+        <button
+          type="button"
+          onClick={() => {
+            sound.playClick();
+            document.getElementById('learning-history-section')?.scrollIntoView({ behavior: 'smooth' });
+          }}
+          style={{
+            padding: '6px 14px',
+            fontSize: '12px',
+            fontWeight: 'bold',
+            borderRadius: '20px',
+            border: '1.5px solid #3b82f6',
+            background: '#eff6ff',
+            color: '#1d4ed8',
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}
+        >
+          <span>📅</span>
+          <span>学習履歴詳細・日々の記録へスクロール ↓</span>
+        </button>
+      </div>
+
       <div className="dashboard-grid">
         {/* 🎯 1日のノルマ＆ご褒美設定ウィザード */}
         <GoalSettingWizard profile={targetProfile} onSave={handleSaveGoal} />
@@ -460,7 +488,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onClose }) => 
         </div>
 
         {/* 履歴テーブル ＆ 学習履歴詳細アコーディオン */}
-        <div className="dashboard-history-card card">
+        <div id="learning-history-section" className="dashboard-history-card card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
             <div>
               <h3 className="chart-title" style={{ margin: 0 }}>📅 日々の記録 ＆ 学習履歴詳細</h3>

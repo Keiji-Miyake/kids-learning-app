@@ -259,12 +259,22 @@ export const App: React.FC = () => {
                   <p>きょうもいっしょにクイズを解いてレベルアップしよう！</p>
                 </div>
               </div>
-              <button 
-                className="banner-switch-btn"
-                onClick={() => { setShowProfileModal(true); }}
-              >
-                👨‍👩‍👧‍👦 アカウント切り替え / アイコン・鍵設定
-              </button>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button 
+                  className="banner-switch-btn"
+                  onClick={() => { setShowProfileModal(true); }}
+                >
+                  👨‍👩‍👧‍👦 アカウント切り替え
+                </button>
+                <button 
+                  className="banner-switch-btn"
+                  onClick={() => { setCurrentScreen('dashboard'); }}
+                  style={{ background: '#ffffff', color: '#1e293b', border: '1.5px solid #cbd5e1' }}
+                  title="保護者向け学習履歴・レポート画面へ移動"
+                >
+                  📊 学習履歴・保護者レポート
+                </button>
+              </div>
             </section>
             {/* 🎯 本日のノルマ進捗カード */}
             {(() => {
