@@ -1,13 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { checkIsDailyGoalAchieved, getGoalProgress } from '../utils/goalEvaluator';
+import { checkIsDailyGoalAchieved } from '../utils/goalEvaluator';
 import type { DailyGoal, DailyReport } from '../types';
 
 describe('ノルマ連打対策：正答率50%以上判定テスト (Quota Anti-Gaming Accuracy Tests)', () => {
   it('目標問題数に達していても、正答率が50%未満（適当な連打）の場合はノルマ未達成となること', () => {
     const goal: DailyGoal = {
       targetQuestions: 10,
+      targetMinutes: 10,
       goalType: 'total_count',
-      reward: '10分ゲーム'
+      rewardText: '10分ゲーム'
     };
 
     // 10問解いたが、連打で3問しか正解していない（正答率30%）
@@ -29,8 +30,9 @@ describe('ノルマ連打対策：正答率50%以上判定テスト (Quota Anti-
   it('目標問題数に達しており、正答率が50%以上（真面目に解答）の場合はノルマ達成となること', () => {
     const goal: DailyGoal = {
       targetQuestions: 10,
+      targetMinutes: 10,
       goalType: 'total_count',
-      reward: '10分ゲーム'
+      rewardText: '10分ゲーム'
     };
 
     // 10問解いて5問正解（正答率50%）
@@ -52,8 +54,9 @@ describe('ノルマ連打対策：正答率50%以上判定テスト (Quota Anti-
   it('科目別目標でも、該当科目の正答率が50%未満の場合は未達成となること', () => {
     const goal: DailyGoal = {
       targetQuestions: 10,
+      targetMinutes: 10,
       goalType: 'subject_specific',
-      reward: '10分ゲーム',
+      rewardText: '10分ゲーム',
       subjectGoals: {
         math: { targetQuestions: 5, targetMinutes: 0 }
       }

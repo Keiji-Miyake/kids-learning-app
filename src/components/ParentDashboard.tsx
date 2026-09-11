@@ -92,9 +92,9 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onClose }) => 
   const handleBirthDateChange = (bDate: string) => {
     setEditBirthDate(bDate);
     if (bDate) {
-      const calcGrade = calculateGradeFromBirthDate(bDate);
-      if (calcGrade) {
-        setEditGrade(calcGrade);
+      const res = calculateGradeFromBirthDate(bDate);
+      if (res && res.isSchoolAge) {
+        setEditGrade(res.grade);
       }
     }
   };
