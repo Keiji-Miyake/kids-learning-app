@@ -159,8 +159,17 @@ export const App: React.FC = () => {
   };
 
 
-  const handleFinishQuiz = (correctCount: number, totalCount: number, wrongQuestionIds: string[], questionRecords?: SessionQuestionRecord[]) => {
-    const timeSpentSeconds = Math.floor((Date.now() - quizStartTime) / 1000);
+  const handleFinishQuiz = (
+    correctCount: number,
+    totalCount: number,
+    wrongQuestionIds: string[],
+    questionRecords?: SessionQuestionRecord[],
+    activeDurationSeconds?: number
+  ) => {
+    // 放置対策: タイムアウト時間を除外した有効アクティブ学習時間を記録
+    const timeSpentSeconds = activeDurationSeconds !== undefined
+      ? activeDurationSeconds
+      : Math.floor((Date.now() - quizStartTime) / 1000);
 
     const reportsBefore = storage.getReports(activeProfile.id);
     const todayStr = new Date().toISOString().split('T')[0];

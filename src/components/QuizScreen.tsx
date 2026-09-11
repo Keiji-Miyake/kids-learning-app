@@ -5,7 +5,13 @@ import { haptics } from '../utils/haptics';
 
 interface QuizScreenProps {
   questions: Question[];
-  onFinish: (correctCount: number, totalCount: number, wrongQuestionIds: string[], questionRecords?: SessionQuestionRecord[]) => void;
+  onFinish: (
+    correctCount: number,
+    totalCount: number,
+    wrongQuestionIds: string[],
+    questionRecords?: SessionQuestionRecord[],
+    activeDurationSeconds?: number
+  ) => void;
   onCancel: () => void;
 }
 
@@ -21,14 +27,37 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
   const [correctCount, setCorrectCount] = useState(0);
   const [timeLeft, setTimeLeft] = useState(30); // 1問30秒
   const [wrongQuestionIds, setWrongQuestionIds] = useState<string[]>([]);
+  
+  // 連打・放置防止用ステート
+  const [isDelayLocked, setIsDelayLocked] = useState(true);
+  const [showFastWarning, setShowFastWarning] = useState(false);
+  const [consecutiveTimeouts, setConsecutiveTimeouts] = useState(0);
+  const [isPausedForInactivity, setIsPausedForInactivity] = useState(false);
+  const [activeDurationSeconds, setActiveDurationSeconds] = useState<number>(0);
+
   const timerRef = useRef<any | null>(null);
+  const lockTimerRef = useRef<any | null>(null);
   const startTimeRef = useRef<number>(Date.now());
 
   const currentQuestion = questions[currentIndex];
 
+  // 出題時の早押しガードタイマー (800ms)
+  useEffect(() => {
+    setIsDelayLocked(true);
+    setShowFastWarning(false);
+
+    lockTimerRef.current = setTimeout(() => {
+      setIsDelayLocked(false);
+    }, 800);
+
+    return () => {
+      if (lockTimerRef.current) clearTimeout(lockTimerRef.current);
+    };
+  }, [currentIndex]);
+
   // タイマー処理
   useEffect(() => {
-    if (isAnswered) {
+    if (isAnswered || isPausedForInactivity) {
       if (timerRef.current) clearInterval(timerRef.current);
       return;
     }
@@ -47,10 +76,19 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
       });
     }, 1000);
 
+    // タブ切り替え（バックグラウンド移行）検知
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        if (timerRef.current) clearInterval(timerRef.current);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [currentIndex, isAnswered]);
+  }, [currentIndex, isAnswered, isPausedForInactivity]);
 
   const handleTimeOut = () => {
     sound.playWrong();
@@ -59,17 +97,35 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
     setUserAnswers((prev) => ({ ...prev, [currentIndex]: '(時間切れ・無解答)' }));
     setIsAnswered(true);
     setWrongQuestionIds((prev) => [...prev, currentQuestion.id]);
+
+    // タイムアウトした問題は放置とみなし有効学習時間は加算しない (0秒)
+    const nextTimeouts = consecutiveTimeouts + 1;
+    setConsecutiveTimeouts(nextTimeouts);
+    if (nextTimeouts >= 2) {
+      setIsPausedForInactivity(true);
+    }
   };
 
   const handleAnswerSelect = (option: string) => {
-    if (isAnswered) return;
+    if (isAnswered || isPausedForInactivity) return;
+
+    if (isDelayLocked) {
+      // 800ms 未満での早押し連打
+      setShowFastWarning(true);
+      setTimeout(() => setShowFastWarning(false), 2000);
+      return;
+    }
+
+    // 正当な解答：有効学習時間を積算（1問あたり最大40秒キャップ）
+    const spentSec = Math.min(40, Math.max(1, Math.floor((Date.now() - startTimeRef.current) / 1000)));
+    setActiveDurationSeconds(prev => prev + spentSec);
+    setConsecutiveTimeouts(0); // 解答したため連続放置カウントをリセット
 
     setSelectedAnswer(option);
     setUserAnswers((prev) => ({ ...prev, [currentIndex]: option }));
     setIsAnswered(true);
 
     const isCorrect = option === currentQuestion.correctAnswer;
-
 
     if (isCorrect) {
       sound.playCorrect();
@@ -80,6 +136,12 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
       haptics.vibrateWrong();
       setWrongQuestionIds((prev) => [...prev, currentQuestion.id]);
     }
+  };
+
+  const handleResumeFromInactivity = () => {
+    sound.playClick();
+    setConsecutiveTimeouts(0);
+    setIsPausedForInactivity(false);
   };
 
   const handleNext = () => {
@@ -105,7 +167,7 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
           explanation: q.explanation
         };
       });
-      onFinish(correctCount, questions.length, wrongQuestionIds, questionRecords);
+      onFinish(correctCount, questions.length, wrongQuestionIds, questionRecords, activeDurationSeconds);
     }
   };
 
@@ -178,6 +240,29 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
 
   return (
     <div className="quiz-screen-container">
+      {/* 🍵 自動一時停止（きゅうけいちゅう）モーダル */}
+      {isPausedForInactivity && (
+        <div className="modal-overlay" style={{ zIndex: 1000 }}>
+          <div className="modal-content card slide-up" style={{ textAlign: 'center', padding: '32px 24px', maxWidth: '400px' }}>
+            <div style={{ fontSize: '56px', marginBottom: '16px' }}>🍵</div>
+            <h3 style={{ fontSize: '22px', fontWeight: 'bold', color: '#334155', marginBottom: '12px' }}>
+              きゅうけいちゅう
+            </h3>
+            <p style={{ fontSize: '15px', color: '#64748b', lineHeight: 1.6, marginBottom: '24px' }}>
+              すこし休憩できたかな？<br />
+              準備ができたら「つづける」を押して、次の問題にチャレンジしよう！
+            </p>
+            <button
+              className="start-btn"
+              onClick={handleResumeFromInactivity}
+              style={{ width: '100%', padding: '14px', fontSize: '18px' }}
+            >
+              つづける 👉
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 上部プログレス＆タイマー */}
       <div className="quiz-header">
         <button className="quiz-cancel-btn" onClick={() => { sound.playClick(); onCancel(); }}>
@@ -195,6 +280,28 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
           ⏱ {timeLeft}秒
         </div>
       </div>
+
+      {/* 早押し連打警告メッセージ */}
+      {showFastWarning && (
+        <div className="fast-warning-banner fade-in" style={{
+          background: '#fef3c7',
+          border: '1.5px solid #f59e0b',
+          color: '#b45309',
+          padding: '8px 16px',
+          borderRadius: '12px',
+          margin: '0 auto 12px auto',
+          textAlign: 'center',
+          fontWeight: 'bold',
+          fontSize: '14px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '8px'
+        }}>
+          <span>👀</span>
+          <span>しっかり問題文を読んでみよう！</span>
+        </div>
+      )}
 
       {/* 問題文 */}
       <div className="quiz-body-card">
