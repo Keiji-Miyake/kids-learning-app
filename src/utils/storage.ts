@@ -1,5 +1,6 @@
 import type { UserProfile, UserStats, ReviewItem, DailyReport, Subject, DailyGoal, QuizSession, SemesterSystem, Question, QuestionSRSItem, SessionQuestionRecord } from '../types';
 import { evaluateSRSAnswer, generateQuestionKey } from './spacedRepetition';
+import { calculateGradeFromBirthDate } from './gradeCalculator';
 
 const PROFILES_KEY = 'kids_learnquest_profiles_list';
 const ACTIVE_PROFILE_KEY = 'kids_learnquest_active_profile_id';
@@ -187,6 +188,7 @@ export const storage = {
               ...p,
               name: p.name || localP?.name || '',
               avatarEmoji: p.avatarEmoji || localP?.avatarEmoji || '🧑‍🚀',
+              birthDate: p.birthDate !== undefined ? p.birthDate : localP?.birthDate,
               pin: p.pin !== undefined ? p.pin : localP?.pin,
               grade: p.grade || localP?.grade || 3,
               dailyGoal: mergedGoal,
@@ -223,7 +225,7 @@ export const storage = {
     }
   },
 
-  // プロファイル一覧の取得
+  // プロファイル一覧の取得（生年月日に基づく学年自動進級チェック付き）
   getProfiles(): UserProfile[] {
     const data = localStorage.getItem(PROFILES_KEY);
     if (!data) {
@@ -233,12 +235,32 @@ export const storage = {
     }
     try {
       const parsed: UserProfile[] = JSON.parse(data);
-      const sanitized = parsed.map((p, idx) => ({
-        ...p,
-        avatarEmoji: p.avatarEmoji || defaultProfiles[idx % defaultProfiles.length]?.avatarEmoji || '🧑‍🚀',
-        grade: p.grade || defaultProfiles[idx % defaultProfiles.length]?.grade || 3,
-        dailyGoal: p.dailyGoal || defaultDailyGoal
-      }));
+      let hasUpdates = false;
+
+      const sanitized = parsed.map((p, idx) => {
+        let currentGrade = p.grade || defaultProfiles[idx % defaultProfiles.length]?.grade || 3;
+        
+        // 生年月日が登録されている場合、現在の年度に基づく学年を自動算出・自動進級
+        if (p.birthDate) {
+          const calculated = calculateGradeFromBirthDate(p.birthDate);
+          if (calculated.isSchoolAge && calculated.grade !== currentGrade) {
+            currentGrade = calculated.grade;
+            hasUpdates = true;
+          }
+        }
+
+        return {
+          ...p,
+          avatarEmoji: p.avatarEmoji || defaultProfiles[idx % defaultProfiles.length]?.avatarEmoji || '🧑‍🚀',
+          grade: currentGrade,
+          dailyGoal: p.dailyGoal || defaultDailyGoal
+        };
+      });
+
+      if (hasUpdates) {
+        localStorage.setItem(PROFILES_KEY, JSON.stringify(sanitized));
+      }
+
       return sanitized;
     } catch {
       return defaultProfiles;
@@ -287,13 +309,15 @@ export const storage = {
     grade: number = 3,
     pin?: string,
     dailyGoal?: DailyGoal,
-    semesterSystem?: SemesterSystem
+    semesterSystem?: SemesterSystem,
+    birthDate?: string
   ): UserProfile {
     const profiles = this.getProfiles();
     const newProfile: UserProfile = {
       id: `profile-${Date.now()}`,
       name: name.trim() || 'チャレンジャー',
       avatarEmoji: avatarEmoji || '🧑‍🚀',
+      birthDate,
       grade: grade || 3,
       pin: pin ? pin.trim() : undefined,
       dailyGoal: dailyGoal || { ...defaultDailyGoal },

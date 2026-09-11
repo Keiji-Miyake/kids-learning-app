@@ -3,6 +3,7 @@ import type { UserProfile, SemesterSystem } from '../types';
 import { storage } from '../utils/storage';
 import { sound } from '../utils/sound';
 import { haptics } from '../utils/haptics';
+import { calculateGradeFromBirthDate } from '../utils/gradeCalculator';
 import AvatarPreview from './AvatarPreview';
 
 interface ProfileSelectorModalProps {
@@ -48,9 +49,16 @@ export const ProfileSelectorModal: React.FC<ProfileSelectorModalProps> = ({
   // 編集用フォームステート
   const [editName, setEditName] = useState('');
   const [editEmoji, setEditEmoji] = useState('👦');
+  const [editBirthDate, setEditBirthDate] = useState('');
   const [editGrade, setEditGrade] = useState<number>(3);
   const [editPin, setEditPin] = useState('');
   const [editSemesterSystem, setEditSemesterSystem] = useState<SemesterSystem>('3-term');
+
+  // 保護者による生年月日・学年編集ロック解除用ステート
+  const [isParentUnlockedForEdit, setIsParentUnlockedForEdit] = useState<boolean>(false);
+  const [showUnlockForm, setShowUnlockForm] = useState<boolean>(false);
+  const [unlockPassword, setUnlockPassword] = useState('');
+  const [unlockError, setUnlockError] = useState('');
 
   const avatarOptions = [
     '👦', '👧', '👶', '🧑‍🚀', '👩‍🚀', '🤖', '🐱', '🐶',
@@ -110,6 +118,32 @@ export const ProfileSelectorModal: React.FC<ProfileSelectorModalProps> = ({
     setPinError(false);
   };
 
+  const handleBirthDateChange = (newDateStr: string) => {
+    setEditBirthDate(newDateStr);
+    if (newDateStr) {
+      const res = calculateGradeFromBirthDate(newDateStr);
+      if (res.isSchoolAge) {
+        setEditGrade(res.grade);
+      }
+    }
+  };
+
+  const handleUnlockParentForEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    sound.playClick();
+    const isValid = await storage.verifyParentPasswordAsync(unlockPassword);
+    if (!isValid) {
+      sound.playWrong();
+      haptics.vibrateWrong();
+      setUnlockError('❌ 保護者パスワードが正しくありません。');
+      return;
+    }
+    sound.playCorrect();
+    setIsParentUnlockedForEdit(true);
+    setShowUnlockForm(false);
+    setUnlockError('');
+  };
+
   const handleOpenEdit = (e: React.MouseEvent, profile: UserProfile) => {
     e.stopPropagation();
     if (!canEditProfile(activeId, profile.id)) {
@@ -120,9 +154,14 @@ export const ProfileSelectorModal: React.FC<ProfileSelectorModalProps> = ({
     setTargetProfile(profile);
     setEditName(profile.name);
     setEditEmoji(profile.avatarEmoji);
+    setEditBirthDate(profile.birthDate || '');
     setEditGrade(profile.grade || 3);
     setEditPin(profile.pin || '');
     setEditSemesterSystem(profile.semesterSystem || '3-term');
+    setIsParentUnlockedForEdit(false);
+    setShowUnlockForm(false);
+    setUnlockPassword('');
+    setUnlockError('');
     setMode('edit');
   };
 
@@ -147,6 +186,7 @@ export const ProfileSelectorModal: React.FC<ProfileSelectorModalProps> = ({
     sound.playCorrect();
     setEditName('');
     setEditEmoji('👦');
+    setEditBirthDate('');
     setEditGrade(3);
     setEditPin('');
     setEditSemesterSystem('3-term');
@@ -164,7 +204,8 @@ export const ProfileSelectorModal: React.FC<ProfileSelectorModalProps> = ({
       editGrade,
       editPin.trim() || undefined,
       undefined,
-      editSemesterSystem
+      editSemesterSystem,
+      editBirthDate.trim() || undefined
     );
     setProfiles(storage.getProfiles());
     setMode('list');
@@ -180,6 +221,7 @@ export const ProfileSelectorModal: React.FC<ProfileSelectorModalProps> = ({
       ...targetProfile,
       name: editName.trim(),
       avatarEmoji: editEmoji,
+      birthDate: editBirthDate.trim() ? editBirthDate.trim() : undefined,
       grade: editGrade,
       pin: editPin.trim() ? editPin.trim() : undefined,
       semesterSystem: editSemesterSystem
@@ -355,8 +397,23 @@ export const ProfileSelectorModal: React.FC<ProfileSelectorModalProps> = ({
             </div>
 
             <div className="form-group">
-              <label>がくねん（学年）：</label>
+              <label htmlFor="add-birthdate">生年月日（任意）：</label>
+              <input
+                type="date"
+                id="add-birthdate"
+                aria-label="生年月日"
+                className="profile-input"
+                value={editBirthDate}
+                onChange={(e) => handleBirthDateChange(e.target.value)}
+              />
+              <span className="form-hint">※生年月日を入力すると学年が自動計算され、毎年4月に自動進級します。</span>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="add-grade">がくねん（学年）：</label>
               <select
+                id="add-grade"
+                aria-label="学年"
                 className="profile-input"
                 value={editGrade}
                 onChange={(e) => setEditGrade(Number(e.target.value))}
@@ -442,11 +499,28 @@ export const ProfileSelectorModal: React.FC<ProfileSelectorModalProps> = ({
             </div>
 
             <div className="form-group">
-              <label>がくねん（学年）：</label>
+              <label htmlFor="edit-birthdate">生年月日：</label>
+              <input
+                type="date"
+                id="edit-birthdate"
+                aria-label="生年月日"
+                className="profile-input"
+                value={editBirthDate}
+                onChange={(e) => handleBirthDateChange(e.target.value)}
+                disabled={!isParentUnlockedForEdit}
+              />
+              <span className="form-hint">※生年月日に基づき毎年4月に自動進級します。</span>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="edit-grade">がくねん（学年）：</label>
               <select
+                id="edit-grade"
+                aria-label="学年"
                 className="profile-input"
                 value={editGrade}
                 onChange={(e) => setEditGrade(Number(e.target.value))}
+                disabled={!isParentUnlockedForEdit}
               >
                 <option value={1}>小学1年</option>
                 <option value={2}>小学2年</option>
@@ -459,6 +533,48 @@ export const ProfileSelectorModal: React.FC<ProfileSelectorModalProps> = ({
                 <option value={9}>中学3年</option>
               </select>
               <span className="form-hint">※ここで設定した学年がクイズ選択時に自動でセットされます。</span>
+
+              {!isParentUnlockedForEdit && (
+                <div style={{ marginTop: '8px', padding: '10px 12px', background: '#fef3c7', borderRadius: '8px', border: '1px solid #fde68a' }}>
+                  <p style={{ margin: 0, fontSize: '12px', color: '#92400e', fontWeight: 'bold' }}>
+                    🔒 学年や生年月日の変更は保護者パスワードが必要です。
+                  </p>
+                  {!showUnlockForm ? (
+                    <button
+                      type="button"
+                      onClick={() => { sound.playClick(); setShowUnlockForm(true); }}
+                      style={{ marginTop: '6px', background: '#d97706', color: '#fff', border: 'none', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 'bold' }}
+                    >
+                      🔑 保護者ロックを解除して変更
+                    </button>
+                  ) : (
+                    <div style={{ marginTop: '8px', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <input
+                        type="password"
+                        placeholder="保護者パスワード"
+                        value={unlockPassword}
+                        onChange={(e) => setUnlockPassword(e.target.value)}
+                        style={{ padding: '4px 8px', fontSize: '12px', borderRadius: '4px', border: '1px solid #cbd5e1' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleUnlockParentForEdit}
+                        style={{ background: '#16a34a', color: '#fff', border: 'none', padding: '4px 10px', borderRadius: '4px', fontSize: '12px', cursor: 'pointer', fontWeight: 'bold' }}
+                      >
+                        解除する 🔓
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowUnlockForm(false)}
+                        style={{ background: '#94a3b8', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', cursor: 'pointer' }}
+                      >
+                        キャンセル
+                      </button>
+                      {unlockError && <span style={{ color: '#dc2626', fontSize: '11px', fontWeight: 'bold' }}>{unlockError}</span>}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="form-group profile-form-group">
