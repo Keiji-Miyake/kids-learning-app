@@ -2951,4 +2951,49 @@ body {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06) !important;
 }
 
+/* ⚙️ プロフィール選択画面の管理画面ダイレクトボタン */
+.direct-dashboard-btn {
+  transition: all 0.2s ease;
+}
+.direct-dashboard-btn:hover {
+  background: #dbeafe !important;
+  border-color: #2563eb !important;
+  transform: translateY(-1px);
+}
+
+/* 🧭 保護者管理画面の大タブナビゲーション */
+.parent-nav-tabs .nav-tab-btn {
+  background: #f8fafc;
+  color: #64748b;
+  border: 1.5px solid #cbd5e1;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+.parent-nav-tabs .nav-tab-btn:hover {
+  background: #f1f5f9;
+  color: #1e293b;
+}
+.parent-nav-tabs .nav-tab-btn.active {
+  background: #3b82f6 !important;
+  color: #ffffff !important;
+  border-color: #2563eb !important;
+  box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
+}
+
+/* ⚠️ 早押し警告トースト */
+.fast-warning-banner {
+  animation: pulse-soft 1s infinite alternate;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
+}
+
+@keyframes pulse-soft {
+  from {
+    transform: scale(0.98);
+  }
+  to {
+    transform: scale(1.01);
+  }
+}
+
+
 

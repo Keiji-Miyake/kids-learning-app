@@ -351,6 +351,17 @@ export const App: React.FC = () => {
                     ></div>
                   </div>
 
+                  {!isGoalAchieved && (
+                    <div style={{ marginTop: '8px', fontSize: '13px', color: '#1e40af', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span>🚀</span>
+                      <span>
+                        {goalProgress.goalType === 'total_count' && `しっかり読んで、あと ${Math.max(1, (goal.targetQuestions || 5) - (todayReport?.questionsCorrect || 0))} 問正解しよう！`}
+                        {goalProgress.goalType === 'total_time' && `あと少し！集中してあと ${Math.max(1, (goal.targetMinutes || 10) - (todayReport?.subjectMinutes ? Math.round(Object.values(todayReport.subjectMinutes).reduce((a,b)=>a+b,0)*10)/10 : 0))} 分勉強しよう！`}
+                        {goalProgress.goalType === 'subject_specific' && '設定された科目の目標クリアをめざそう！'}
+                      </span>
+                    </div>
+                  )}
+
                   {/* 🌟 重点目標 ＆ 単元表示 */}
                   {((goal.targetSubject && goal.targetSubject !== 'all') || (goal.targetUnitName && goal.targetUnitName !== 'all')) && (
                     <div style={{ marginTop: '12px', background: '#dbeafe', padding: '8px 12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#1e40af', fontWeight: 'bold' }}>
