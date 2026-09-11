@@ -84,13 +84,14 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onClose }) => 
     setProfiles(updatedList);
   };
 
+  const [_reportVersion, setReportVersion] = useState<number>(0);
   const reports: DailyReport[] = storage.getReports(selectedProfileId);
   const todayStr = new Date().toISOString().split('T')[0];
   const todayReport = reports.find(r => r.date === todayStr);
   const dayMap: DayOfWeek[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
   const currentDayKey = dayMap[new Date().getDay()];
   const effectiveGoal = targetProfile ? getEffectiveDailyGoal(targetProfile) : undefined;
-  const goalProgress = getGoalProgress(effectiveGoal, todayReport);
+  const goalProgress = getGoalProgress(effectiveGoal, todayReport, targetProfile?.grade);
   const isWeeklyActive = targetProfile?.weeklySchedule?.enabled;
 
 
@@ -461,11 +462,102 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onClose }) => 
         {/* 履歴テーブル ＆ 学習履歴詳細アコーディオン */}
         <div className="dashboard-history-card card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
-            <h3 className="chart-title" style={{ margin: 0 }}>📅 日々の記録 ＆ 学習履歴詳細</h3>
-            <span style={{ fontSize: '12px', color: '#64748b' }}>日付を押すと学習詳細が展開します</span>
+            <div>
+              <h3 className="chart-title" style={{ margin: 0 }}>📅 日々の記録 ＆ 学習履歴詳細</h3>
+              <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0 0' }}>
+                日付行または「▼ 詳細を見る」を押すと、解いた問題・解答・解説が展開します
+              </p>
+            </div>
+            {reports.length > 0 && (
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={() => {
+                    sound.playClick();
+                    storage.addSampleReportData(selectedProfileId);
+                    setReportVersion(v => v + 1);
+                  }}
+                  style={{
+                    padding: '4px 10px',
+                    fontSize: '12px',
+                    borderRadius: '6px',
+                    background: '#eff6ff',
+                    color: '#2563eb',
+                    border: '1px solid #bfdbfe',
+                    cursor: 'pointer'
+                  }}
+                >
+                  ＋ サンプル履歴を追加
+                </button>
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={() => {
+                    if (window.confirm('このプロファイルの学習履歴をすべてクリアしますか？')) {
+                      sound.playClick();
+                      storage.clearReports(selectedProfileId);
+                      setReportVersion(v => v + 1);
+                    }
+                  }}
+                  style={{
+                    padding: '4px 10px',
+                    fontSize: '12px',
+                    borderRadius: '6px',
+                    background: '#fef2f2',
+                    color: '#dc2626',
+                    border: '1px solid #fecaca',
+                    cursor: 'pointer'
+                  }}
+                >
+                  🗑️ 履歴をクリア
+                </button>
+              </div>
+            )}
           </div>
           {reports.length === 0 ? (
-            <p className="no-data-text">まだ学習データがありません。</p>
+            <div className="no-data-card" style={{
+              padding: '24px 20px',
+              background: '#f8fafc',
+              borderRadius: '12px',
+              border: '1px dashed #cbd5e1',
+              textAlign: 'center',
+              margin: '12px 0'
+            }}>
+              <div style={{ fontSize: '32px', marginBottom: '8px' }}>📝</div>
+              <p style={{ fontSize: '15px', fontWeight: 'bold', color: '#334155', margin: '0 0 6px 0' }}>
+                まだ学習履歴データがありません
+              </p>
+              <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 16px 0', lineHeight: '1.6', maxWidth: '480px', marginLeft: 'auto', marginRight: 'auto' }}>
+                お子様がクイズや単元確認テストをプレイすると、ここに日付別の学習時間・単元・解いた問題や正誤・解説が記録され、詳細を確認できるようになります。
+              </p>
+              <button
+                type="button"
+                className="sample-data-btn"
+                onClick={() => {
+                  sound.playClick();
+                  storage.addSampleReportData(selectedProfileId);
+                  setReportVersion(v => v + 1);
+                }}
+                style={{
+                  padding: '9px 18px',
+                  background: '#2563eb',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: '13px',
+                  boxShadow: '0 2px 4px rgba(37, 99, 235, 0.2)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <span>🧪</span>
+                <span>動作確認用サンプル学習履歴を追加する</span>
+              </button>
+            </div>
           ) : (
             <div className="table-responsive">
               <table className="history-table">

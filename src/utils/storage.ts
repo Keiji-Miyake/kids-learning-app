@@ -537,6 +537,7 @@ export const storage = {
     profileId?: string,
     totalAttempted?: number,
     sessionDetails?: {
+      grade?: number;
       unitName?: string;
       sessionType?: 'quiz' | 'exam';
       questionRecords?: SessionQuestionRecord[];
@@ -595,6 +596,7 @@ export const storage = {
     const session: QuizSession = {
       id: `sess-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       subject: subjectKey,
+      grade: sessionDetails?.grade,
       unitName: sessionDetails?.unitName || '全般（ランダム）',
       sessionType: sessionDetails?.sessionType || 'quiz',
       questionsAttempted: attempted,
@@ -621,6 +623,105 @@ export const storage = {
     } catch (err) {
       console.warn("レポートサーバー送信例外:", err);
     }
+  },
+
+  // 🧪 動作確認・デモ用サンプル学習データの投入
+  addSampleReportData(profileId?: string): void {
+    const targetId = profileId || storage.getActiveProfileId();
+
+    // 算数クイズセッション（5問中4問正解、1問不正解）
+    this.addReportData('math', 4, 180, targetId, 5, {
+      unitName: '九九・かけ算',
+      sessionType: 'quiz',
+      questionRecords: [
+        {
+          questionId: 'sample-math-1',
+          questionText: '3 × 4 は いくらかな？',
+          selectedAnswer: '12',
+          correctAnswer: '12',
+          isCorrect: true,
+          explanation: '3 × 4 = 12 です。'
+        },
+        {
+          questionId: 'sample-math-2',
+          questionText: '7 × 8 は いくらかな？',
+          selectedAnswer: '54',
+          correctAnswer: '56',
+          isCorrect: false,
+          explanation: '7 × 8 = 56 です。7の段をもう一度復習してみよう！'
+        },
+        {
+          questionId: 'sample-math-3',
+          questionText: '6 × 9 は いくらかな？',
+          selectedAnswer: '54',
+          correctAnswer: '54',
+          isCorrect: true,
+          explanation: '6 × 9 = 54 です。'
+        },
+        {
+          questionId: 'sample-math-4',
+          questionText: '8 × 4 は いくらかな？',
+          selectedAnswer: '32',
+          correctAnswer: '32',
+          isCorrect: true,
+          explanation: '8 × 4 = 32 です。'
+        },
+        {
+          questionId: 'sample-math-5',
+          questionText: '9 × 9 は いくらかな？',
+          selectedAnswer: '81',
+          correctAnswer: '81',
+          isCorrect: true,
+          explanation: '9 × 9 = 81 です。'
+        }
+      ]
+    });
+
+    // 国語単元テストセッション（3問全問正解）
+    this.addReportData('japanese', 3, 120, targetId, 3, {
+      unitName: '漢字の読み書き',
+      sessionType: 'exam',
+      questionRecords: [
+        {
+          questionId: 'sample-jp-1',
+          questionText: '「山」の訓読み（くんよみ）は？',
+          selectedAnswer: 'やま',
+          correctAnswer: 'やま',
+          isCorrect: true,
+          explanation: '山（やま）と読みます。'
+        },
+        {
+          questionId: 'sample-jp-2',
+          questionText: '「川」の音読み（おんよみ）は？',
+          selectedAnswer: 'セン',
+          correctAnswer: 'セン',
+          isCorrect: true,
+          explanation: '河川（かせん）の「セン」です。'
+        },
+        {
+          questionId: 'sample-jp-3',
+          questionText: '反対の言葉：「大きい」の反対は？',
+          selectedAnswer: '小さい',
+          correctAnswer: '小さい',
+          isCorrect: true,
+          explanation: '「大きい」の反対は「小さい」です。'
+        }
+      ]
+    });
+  },
+
+  // 🧹 学習レポートの全削除（プロファイル単位）
+  clearReports(profileId?: string): void {
+    const targetId = profileId || storage.getActiveProfileId();
+    const key = `kids_learnquest_reports_${targetId}`;
+    localStorage.removeItem(key);
+    try {
+      if (typeof window !== 'undefined' && window.location) {
+        fetch(`/api/reports/${targetId}`, {
+          method: 'DELETE'
+        }).catch(() => {});
+      }
+    } catch {}
   },
 
   // ストリークの更新判定（プロファイル単位）

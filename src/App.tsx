@@ -37,6 +37,7 @@ export const App: React.FC = () => {
 
   // クイズ用ステート
   const [activeSubject, setActiveSubject] = useState<Subject>('math');
+  const [activeGrade, setActiveGrade] = useState<number>(activeProfile.grade || 3);
   const [activeQuestions, setActiveQuestions] = useState<Question[]>([]);
   const [quizStartTime, setQuizStartTime] = useState<number>(0);
 
@@ -124,6 +125,7 @@ export const App: React.FC = () => {
 
   const handleSelectSubject = (subject: Subject, grade: number, unit?: CurriculumUnit) => {
     setActiveUnit(unit);
+    setActiveGrade(grade);
     const unitName = unit ? unit.unitName : '';
     const srsData = storage.getSRSData(activeProfile.id);
 
@@ -145,6 +147,7 @@ export const App: React.FC = () => {
   const handleStartUnitExam = (subject: Subject, grade: number, unit: CurriculumUnit) => {
     setExamUnit(unit);
     setActiveSubject(subject);
+    setActiveGrade(grade);
     const srsData = storage.getSRSData(activeProfile.id);
 
     // 10問の完全ユニーク本格単元テスト問題を生成
@@ -164,11 +167,12 @@ export const App: React.FC = () => {
     const todayReportBefore = reportsBefore.find(r => r.date === todayStr);
 
     const goal = getEffectiveDailyGoal(activeProfile);
-    const isAchievedBefore = checkIsDailyGoalAchieved(goal, todayReportBefore);
+    const isAchievedBefore = checkIsDailyGoalAchieved(goal, todayReportBefore, activeProfile.grade);
 
     // アクティブなプロファイルに対して学習レポートおよびセッションを登録
     const unitName = activeUnit ? activeUnit.unitName : '全般（ランダム）';
     storage.addReportData(activeSubject, correctCount, timeSpentSeconds, activeProfile.id, totalCount, {
+      grade: activeGrade,
       unitName,
       sessionType: 'quiz',
       questionRecords
@@ -176,7 +180,7 @@ export const App: React.FC = () => {
 
     const reportsAfter = storage.getReports(activeProfile.id);
     const todayReportAfter = reportsAfter.find(r => r.date === todayStr);
-    const isAchievedAfter = checkIsDailyGoalAchieved(goal, todayReportAfter);
+    const isAchievedAfter = checkIsDailyGoalAchieved(goal, todayReportAfter, activeProfile.grade);
 
 
     // 選択された単元がある場合は進捗完了を記録
@@ -268,8 +272,8 @@ export const App: React.FC = () => {
               const reports = storage.getReports(activeProfile.id);
               const todayReport = reports.find(r => r.date === todayStr);
               const goal = getEffectiveDailyGoal(activeProfile);
-              const isGoalAchieved = checkIsDailyGoalAchieved(goal, todayReport);
-              const goalProgress = getGoalProgress(goal, todayReport);
+              const isGoalAchieved = checkIsDailyGoalAchieved(goal, todayReport, activeProfile.grade);
+              const goalProgress = getGoalProgress(goal, todayReport, activeProfile.grade);
 
               const dayMap: DayOfWeek[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
               const currentDayKey = dayMap[new Date().getDay()];

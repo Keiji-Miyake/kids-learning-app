@@ -126,6 +126,7 @@ export const ExamScreen: React.FC<ExamScreenProps> = ({
     });
 
     storage.addReportData(subject, correctCount, timeSpentSeconds, profile.id, questions.length, {
+      grade,
       unitName,
       sessionType: 'exam',
       questionRecords

@@ -70,4 +70,35 @@ describe('保護者管理画面 学習履歴詳細アコーディオンUIテス�
     expect(screen.queryByText(/3 × 7 は？/)).toBeNull();
     expect(screen.getByText(/7 × 8 は？/)).toBeTruthy();
   });
+
+  it('データが0件のとき、案内メッセージとサンプル追加ボタンが表示され、クリックで履歴テーブルが現れること', async () => {
+    localStorage.clear();
+    const profile = storage.getActiveProfile();
+    storage.clearReports(profile.id);
+
+    render(<ParentDashboard onClose={() => {}} />);
+    const passInput = screen.getByPlaceholderText('保護者パスワード');
+    fireEvent.change(passInput, { target: { value: 'parent' } });
+    fireEvent.click(screen.getByText(/ログインして進む/));
+
+    // 最初はデータがない案内メッセージと追加ボタンが表示される
+    expect(await screen.findByText(/まだ学習履歴データがありません/)).toBeTruthy();
+    const addSampleBtn = screen.getByRole('button', { name: /動作確認用サンプル学習履歴を追加する/ });
+    expect(addSampleBtn).toBeTruthy();
+
+    // テーブルはまだ存在しない
+    expect(screen.queryByRole('button', { name: /詳細を見る/ })).toBeNull();
+
+    // サンプル追加ボタンをクリック
+    fireEvent.click(addSampleBtn);
+
+    // テーブルと詳細を見るボタンが出現する
+    const detailBtn = await screen.findByRole('button', { name: /詳細を見る/ });
+    expect(detailBtn).toBeTruthy();
+
+    // 詳細を開いてサンプル問題を確認
+    fireEvent.click(detailBtn);
+    expect(screen.getByText(/九九・かけ算/)).toBeTruthy();
+    expect(screen.getByText(/3 × 4 は いくらかな？/)).toBeTruthy();
+  });
 });

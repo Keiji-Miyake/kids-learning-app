@@ -92,13 +92,70 @@ export const getSubjectProgressSummary = (
   return summary as Record<Subject, SubjectGoalSummary>;
 };
 
+/**
+ * お子様の学年（profileGrade）に基づいて、現学年以上（現学年＋先取り）のセッションのみを抽出・再集計したレポートを取得
+ */
+export const getFilteredReportForGoal = (
+  report?: DailyReport,
+  profileGrade?: number
+): DailyReport | undefined => {
+  if (!report) return undefined;
+  if (!profileGrade || !report.sessions) {
+    return report;
+  }
+
+  // お子様の現在学年以上のセッション（現学年＋先取り）のみを対象とする
+  const eligibleSessions = report.sessions.filter(sess => {
+    // セッションにgradeが記録されていない旧データは互換性のため含める
+    if (sess.grade === undefined) return true;
+    return sess.grade >= profileGrade;
+  });
+
+  const subjectMinutes: Record<Subject, number> = {
+    math: 0,
+    japanese: 0,
+    science: 0,
+    social: 0,
+    english: 0
+  };
+  const subjectBreakdown: Partial<Record<Subject, { total: number; correct?: number }>> = {};
+  let questionsAttempted = 0;
+  let questionsCorrect = 0;
+
+  eligibleSessions.forEach(sess => {
+    questionsAttempted += sess.questionsAttempted;
+    questionsCorrect += sess.questionsCorrect;
+    if (sess.subject) {
+      subjectMinutes[sess.subject] = (subjectMinutes[sess.subject] || 0) + sess.durationMinutes;
+      if (!subjectBreakdown[sess.subject]) {
+        subjectBreakdown[sess.subject] = { total: 0, correct: 0 };
+      }
+      subjectBreakdown[sess.subject]!.total += sess.questionsAttempted;
+      subjectBreakdown[sess.subject]!.correct = (subjectBreakdown[sess.subject]!.correct || 0) + sess.questionsCorrect;
+    }
+  });
+
+  return {
+    date: report.date,
+    questionsAttempted,
+    questionsCorrect,
+    totalQuestions: questionsAttempted,
+    subjectMinutes,
+    subjectBreakdown,
+    sessions: eligibleSessions
+  };
+};
+
 export const checkIsDailyGoalAchieved = (
   goal?: DailyGoal,
-  reports?: DailyReport[] | DailyReport
+  reports?: DailyReport[] | DailyReport,
+  profileGrade?: number
 ): boolean => {
   if (!goal) return false;
-  const report = Array.isArray(reports) ? reports[0] : reports;
-  if (!report) return false;
+  const rawReport = Array.isArray(reports) ? reports[0] : reports;
+  if (!rawReport) return false;
+
+  const report = getFilteredReportForGoal(rawReport, profileGrade) || rawReport;
 
   const mode: GoalType = goal.goalType || 'total_count';
   const todayTotal = report.totalQuestions !== undefined ? report.totalQuestions : (report.questionsAttempted || 0);
@@ -144,7 +201,8 @@ export const checkIsDailyGoalAchieved = (
 
 export const getGoalProgress = (
   goal?: DailyGoal,
-  reports?: DailyReport[] | DailyReport
+  reports?: DailyReport[] | DailyReport,
+  profileGrade?: number
 ): GoalOverallProgress => {
   if (!goal) {
     return {
@@ -157,8 +215,9 @@ export const getGoalProgress = (
   }
 
   const rawReport = Array.isArray(reports) ? reports[0] : reports;
+  const filteredReport = getFilteredReportForGoal(rawReport, profileGrade);
   const todayStr = new Date().toISOString().split('T')[0];
-  const report: DailyReport = rawReport || {
+  const report: DailyReport = filteredReport || rawReport || {
     date: todayStr,
     totalQuestions: 0,
     questionsAttempted: 0,
@@ -175,7 +234,7 @@ export const getGoalProgress = (
   };
 
   const mode: GoalType = goal.goalType || 'total_count';
-  const isAchieved = checkIsDailyGoalAchieved(goal, report);
+  const isAchieved = checkIsDailyGoalAchieved(goal, rawReport, profileGrade);
 
 
   const todayQuestions = report.totalQuestions !== undefined ? report.totalQuestions : (report.questionsAttempted || 0);
