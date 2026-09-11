@@ -47,6 +47,7 @@ export const getSubjectProgressSummary = (
   subjects.forEach(sub => {
     const breakdown = report?.subjectBreakdown?.[sub];
     const currentQuestions = breakdown ? breakdown.total : 0;
+    const currentCorrect = breakdown ? (breakdown.correct ?? 0) : 0;
     const currentMinutes = report?.subjectMinutes?.[sub] ? Math.round(report.subjectMinutes[sub] * 10) / 10 : 0;
 
     let targetQuestions = 0;
@@ -64,11 +65,14 @@ export const getSubjectProgressSummary = (
     const hasQuestionsTarget = targetQuestions > 0;
     const hasMinutesTarget = targetMinutes > 0;
 
+    // 正答率50%以上チェック（適当な連打による達成を防止）
+    const isAccuracyAcceptable = currentQuestions === 0 || (currentCorrect / currentQuestions >= 0.5);
+
     let isCompleted = true;
     if (hasQuestionsTarget && hasMinutesTarget) {
-      isCompleted = currentQuestions >= targetQuestions && currentMinutes >= targetMinutes;
+      isCompleted = currentQuestions >= targetQuestions && currentMinutes >= targetMinutes && isAccuracyAcceptable;
     } else if (hasQuestionsTarget) {
-      isCompleted = currentQuestions >= targetQuestions;
+      isCompleted = currentQuestions >= targetQuestions && isAccuracyAcceptable;
     } else if (hasMinutesTarget) {
       isCompleted = currentMinutes >= targetMinutes;
     }
@@ -159,10 +163,12 @@ export const checkIsDailyGoalAchieved = (
 
   const mode: GoalType = goal.goalType || 'total_count';
   const todayTotal = report.totalQuestions !== undefined ? report.totalQuestions : (report.questionsAttempted || 0);
+  const todayCorrect = report.questionsCorrect !== undefined ? report.questionsCorrect : 0;
+  const isOverallAccuracyAcceptable = todayTotal === 0 || (todayCorrect / todayTotal >= 0.5);
 
   // モード1: 1日の全体問題数で判定
   if (mode === 'total_count') {
-    return todayTotal >= (goal.targetQuestions || 5);
+    return todayTotal >= (goal.targetQuestions || 5) && isOverallAccuracyAcceptable;
   }
 
   // モード2: 1日の合計学習時間で判定
@@ -191,12 +197,12 @@ export const checkIsDailyGoalAchieved = (
 
     // 設定が特にない場合は全体の目標問題数で判定
     if (!hasAnyTarget) {
-      return todayTotal >= (goal.targetQuestions || 5);
+      return todayTotal >= (goal.targetQuestions || 5) && isOverallAccuracyAcceptable;
     }
     return true;
   }
 
-  return todayTotal >= (goal.targetQuestions || 5);
+  return todayTotal >= (goal.targetQuestions || 5) && isOverallAccuracyAcceptable;
 };
 
 export const getGoalProgress = (
