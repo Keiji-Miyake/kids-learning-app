@@ -131,7 +131,10 @@ export const App: React.FC = () => {
     const srsData = storage.getSRSData(activeProfile.id);
 
     // 重複を100%排除し、SRS（忘却曲線クールダウン・マスター除外・復習優先）を適用した5問を生成
-    const selected5 = generateUniqueQuizSet(subject, grade, 5, unitName, recentQuestionIds, recentQuestionTexts, srsData);
+    let selected5 = generateUniqueQuizSet(subject, grade, 5, unitName, recentQuestionIds, recentQuestionTexts, srsData);
+    if (selected5.length === 0) {
+      selected5 = generateUniqueQuizSet(subject, grade, 5);
+    }
     setRecentQuestionIds(prev => [...prev.slice(-20), ...selected5.map(q => q.id)]);
     setRecentQuestionTexts(prev => [...prev.slice(-20), ...selected5.map(q => q.questionText)]);
 
@@ -152,7 +155,10 @@ export const App: React.FC = () => {
     const srsData = storage.getSRSData(activeProfile.id);
 
     // 10問の完全ユニーク本格単元テスト問題を生成
-    const examPool = generateUniqueQuizSet(subject, grade, 10, unit.unitName, recentQuestionIds, recentQuestionTexts, srsData);
+    let examPool = generateUniqueQuizSet(subject, grade, 10, unit.unitName, recentQuestionIds, recentQuestionTexts, srsData);
+    if (examPool.length === 0) {
+      examPool = generateUniqueQuizSet(subject, grade, 10);
+    }
     setRecentQuestionIds(prev => [...prev.slice(-20), ...examPool.map(q => q.id)]);
     setRecentQuestionTexts(prev => [...prev.slice(-20), ...examPool.map(q => q.questionText)]);
     setExamQuestions(examPool);

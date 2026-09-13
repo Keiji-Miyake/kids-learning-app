@@ -14,7 +14,8 @@ export const generateUniqueQuizSet = (
   todayStr?: string
 ): Question[] => {
   const resultSet: Question[] = [];
-  const usedTexts = new Set<string>(excludeTexts);
+  const sessionUsedTexts = new Set<string>();
+  const sessionUsedIds = new Set<string>();
   const today = todayStr || getTodayDateString();
 
   const isStrictUnitMode = !!(unitName && unitName !== 'all');
@@ -46,32 +47,47 @@ export const generateUniqueQuizSet = (
 
   const unitKeywords = isStrictUnitMode ? getUnitKeywords(unitName) : [];
 
-  // 1. 固定問題のフィルタリング
-  let matchingFixed = fixedQuestions.filter(q => q.subject === subject && (grade ? q.grade === grade : true));
+  const matchesUnit = (q: Question): boolean => {
+    if (!isStrictUnitMode) return true;
+    if (unitName && unitName.includes('平方根') && (q.questionText.includes('二次方程式') || q.explanation.includes('二次方程式') || q.questionText.includes('解の公式'))) {
+      return false;
+    }
+    return unitKeywords.some(kw => q.questionText.includes(kw) || q.explanation.includes(kw));
+  };
 
-  // 🧠 間隔反復（SRS）判定: 完全マスター済みおよびクールダウン中（1週間・4週間・1ヶ月待ち）の問題を除外
-  if (srsData) {
-    matchingFixed = matchingFixed.filter(q => {
-      const srsItem = srsData[generateQuestionKey(q)];
-      return isQuestionAvailableForDailyQuiz(srsItem, today);
-    });
-  }
+  // セッション内でのみ重複を厳格に排除して追加するヘルパー
+  const addCandidate = (cand: Question): boolean => {
+    if (resultSet.length >= count) return false;
+    if (sessionUsedTexts.has(cand.questionText) || sessionUsedIds.has(cand.id)) {
+      return false;
+    }
+    sessionUsedTexts.add(cand.questionText);
+    sessionUsedIds.add(cand.id);
+    resultSet.push(cand);
+    return true;
+  };
 
-  if (isStrictUnitMode) {
-    matchingFixed = matchingFixed.filter(q => {
-      // 特殊除外ルール: 平方根単元に二次方程式の問題が混入するのを防ぐ
-      if (unitName.includes('平方根') && (q.questionText.includes('二次方程式') || q.explanation.includes('二次方程式') || q.questionText.includes('解の公式'))) {
-        return false;
-      }
-      return unitKeywords.some(kw => q.questionText.includes(kw) || q.explanation.includes(kw));
-    });
-  }
+  const isExcludedByRecent = (q: Question): boolean => {
+    return excludeIds.includes(q.id) || excludeTexts.includes(q.questionText);
+  };
 
-  // 🌟 復習期日を迎えた問題（忘却曲線の黄金タイミング）を最優先プールに分ける
+  // 基本となる固定問題（同教科・同学年）
+  const baseFixed = fixedQuestions.filter(q => q.subject === subject && (grade ? q.grade === grade : true));
+  const unitFixed = baseFixed.filter(matchesUnit);
+
+  // --------------------------------------------------------------------------
+  // 🌟 Stage 1: 通常出題（理想状態）
+  // SRS利用可能 ＋ 直近履歴除外 ＋ 単元一致
+  // --------------------------------------------------------------------------
+  const stage1Pool = unitFixed.filter(q => {
+    const srsItem = srsData ? srsData[generateQuestionKey(q)] : undefined;
+    const isSrsAvailable = isQuestionAvailableForDailyQuiz(srsItem, today);
+    return isSrsAvailable && !isExcludedByRecent(q);
+  });
+
   const dueFixed: Question[] = [];
   const freshFixed: Question[] = [];
-
-  matchingFixed.forEach(q => {
+  stage1Pool.forEach(q => {
     const srsItem = srsData ? srsData[generateQuestionKey(q)] : undefined;
     if (srsItem && srsItem.stage > 0 && srsItem.nextAvailableAt <= today && !srsItem.isMastered) {
       dueFixed.push(q);
@@ -80,22 +96,20 @@ export const generateUniqueQuizSet = (
     }
   });
 
-  // 通常問題をシャッフルした上に、復習期日到来問題を最優先（popで先に出るように末尾）に配置
-  const pool = [
+  const prioritizedPool = [
     ...freshFixed.sort(() => Math.random() - 0.5),
     ...dueFixed.sort(() => Math.random() - 0.5)
   ];
 
-  let attempts = 0;
-  while (resultSet.length < count && attempts < 500) {
-    attempts++;
+  let attempts1 = 0;
+  while (resultSet.length < count && attempts1 < 500) {
+    attempts1++;
 
     // 固定問題プールからの抽出
-    if (pool.length > 0 && (!isStrictUnitMode || attempts % 2 === 0)) {
-      const candidate = pool.pop();
-      if (candidate && !usedTexts.has(candidate.questionText) && !excludeIds.includes(candidate.id)) {
-        usedTexts.add(candidate.questionText);
-        resultSet.push(candidate);
+    if (prioritizedPool.length > 0 && (!isStrictUnitMode || attempts1 % 2 === 0)) {
+      const candidate = prioritizedPool.pop();
+      if (candidate) {
+        addCandidate(candidate);
         continue;
       }
     }
@@ -105,35 +119,134 @@ export const generateUniqueQuizSet = (
     const dynKey = generateQuestionKey(dyn);
     const dynSrsItem = srsData ? srsData[dynKey] : undefined;
 
-    // 動的問題もクールダウン中・マスター済みの場合は除外
     if (srsData && !isQuestionAvailableForDailyQuiz(dynSrsItem, today)) {
       continue;
     }
+    if (isExcludedByRecent(dyn)) {
+      continue;
+    }
 
-    if (!usedTexts.has(dyn.questionText) && !excludeIds.includes(dyn.id)) {
-      usedTexts.add(dyn.questionText);
-      resultSet.push(dyn);
+    addCandidate(dyn);
+  }
+
+  // --------------------------------------------------------------------------
+  // 🌟 Stage 2: 直近履歴（excludeTexts, excludeIds）の緩和
+  // 単元一致・SRS未出題/復習期日到来は維持し、直前セッションの問題も復習として許可
+  // --------------------------------------------------------------------------
+  if (resultSet.length < count) {
+    const stage2Pool = unitFixed
+      .filter(q => {
+        const srsItem = srsData ? srsData[generateQuestionKey(q)] : undefined;
+        return isQuestionAvailableForDailyQuiz(srsItem, today);
+      })
+      .sort(() => Math.random() - 0.5);
+
+    for (const q of stage2Pool) {
+      if (resultSet.length >= count) break;
+      addCandidate(q);
+    }
+
+    let dynAttempts = 0;
+    while (resultSet.length < count && dynAttempts < 200) {
+      dynAttempts++;
+      const dyn = generateDynamicQuestion(subject, grade, unitName);
+      const dynKey = generateQuestionKey(dyn);
+      const dynSrsItem = srsData ? srsData[dynKey] : undefined;
+
+      if (srsData && !isQuestionAvailableForDailyQuiz(dynSrsItem, today)) {
+        continue;
+      }
+      addCandidate(dyn);
     }
   }
 
-  // 万が一特定単元でユニーク数がまだ足りない場合の安全フォールバック
-  // （重複や水増しを行わず、同教科・同学年の問題生成からユニークな問題を充当）
-  let safeAttempts = 0;
-  while (resultSet.length < count && safeAttempts < 300) {
-    safeAttempts++;
-    // 単元指定を外して同学年・同教科の関連問題を動的生成
-    const dyn = generateDynamicQuestion(subject, grade);
-    const dynKey = generateQuestionKey(dyn);
-    const dynSrsItem = srsData ? srsData[dynKey] : undefined;
+  // --------------------------------------------------------------------------
+  // 🌟 Stage 3: SRSクールダウン中問題の復習再出題（マスター除外は維持）
+  // 単元内の未マスター問題がクールダウン中の場合、復習・ノルマ達成のため再出題
+  // --------------------------------------------------------------------------
+  if (resultSet.length < count) {
+    const coolingFixed = unitFixed
+      .filter(q => {
+        const srsItem = srsData ? srsData[generateQuestionKey(q)] : undefined;
+        return srsItem && !srsItem.isMastered;
+      })
+      .sort((a, b) => {
+        const itemA = srsData ? srsData[generateQuestionKey(a)] : undefined;
+        const itemB = srsData ? srsData[generateQuestionKey(b)] : undefined;
+        return (itemA?.stage || 0) - (itemB?.stage || 0); // 低いステージ優先
+      });
 
-    if (srsData && !isQuestionAvailableForDailyQuiz(dynSrsItem, today)) {
-      continue;
+    for (const q of coolingFixed) {
+      if (resultSet.length >= count) break;
+      addCandidate(q);
     }
 
-    if (!usedTexts.has(dyn.questionText) && !excludeIds.includes(dyn.id)) {
-      usedTexts.add(dyn.questionText);
-      resultSet.push(dyn);
+    let dynCoolingAttempts = 0;
+    while (resultSet.length < count && dynCoolingAttempts < 150) {
+      dynCoolingAttempts++;
+      const dyn = generateDynamicQuestion(subject, grade, unitName);
+      const dynKey = generateQuestionKey(dyn);
+      const dynSrsItem = srsData ? srsData[dynKey] : undefined;
+      if (dynSrsItem?.isMastered) continue;
+      addCandidate(dyn);
     }
+  }
+
+  // --------------------------------------------------------------------------
+  // 🌟 Stage 4: 同教科・同学年の他単元または総合動的問題の補充
+  // 単元内の問題が物理的に不足している場合、同教科・同学年の他問題で補充
+  // --------------------------------------------------------------------------
+  if (resultSet.length < count) {
+    const fallbackFixed = baseFixed
+      .filter(q => {
+        const srsItem = srsData ? srsData[generateQuestionKey(q)] : undefined;
+        return !srsItem?.isMastered;
+      })
+      .sort(() => Math.random() - 0.5);
+
+    for (const q of fallbackFixed) {
+      if (resultSet.length >= count) break;
+      addCandidate(q);
+    }
+
+    let generalDynAttempts = 0;
+    while (resultSet.length < count && generalDynAttempts < 150) {
+      generalDynAttempts++;
+      const dyn = generateDynamicQuestion(subject, grade);
+      const dynKey = generateQuestionKey(dyn);
+      const dynSrsItem = srsData ? srsData[dynKey] : undefined;
+      if (dynSrsItem?.isMastered) continue;
+      addCandidate(dyn);
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // 🌟 Stage 5: マスター済み問題も含めた練習・完全セーフティネット
+  // 全問マスター済みの場合でも、マスター済み問題からシャッフルして出題
+  // --------------------------------------------------------------------------
+  if (resultSet.length < count) {
+    const allFixed = [...unitFixed, ...baseFixed].sort(() => Math.random() - 0.5);
+    for (const q of allFixed) {
+      if (resultSet.length >= count) break;
+      addCandidate(q);
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // 🌟 Stage 6: 動的生成によるカウント充足の絶対保証
+  // どのような状況でも空配列を返さず、必ず規定数（count）を生成する
+  // --------------------------------------------------------------------------
+  let finalEmergency = 0;
+  while (resultSet.length < count && finalEmergency < 100) {
+    finalEmergency++;
+    const dyn = generateDynamicQuestion(subject, grade, unitName);
+    // 重複した場合は問題文にバリエーションを付加してセッション内でユニーク化
+    if (sessionUsedTexts.has(dyn.questionText)) {
+      const variationSuffix = `（練習 ${finalEmergency}）`;
+      dyn.questionText = `${dyn.questionText} ${variationSuffix}`;
+      dyn.id = `${dyn.id}-em-${finalEmergency}`;
+    }
+    addCandidate(dyn);
   }
 
   return resultSet;

@@ -229,9 +229,18 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
 
   if (!currentQuestion) {
     return (
-      <div className="quiz-empty-state">
-        <p>該当する問題がみつかりませんでした。</p>
-        <button className="back-home-btn" onClick={onCancel}>もどる</button>
+      <div className="quiz-empty-state card fade-in" style={{ padding: '32px 20px', textAlign: 'center', margin: '24px auto', maxWidth: '480px' }}>
+        <div style={{ fontSize: '48px', marginBottom: '16px' }}>✨</div>
+        <h3 style={{ fontSize: '20px', fontWeight: 'bold', color: '#1e293b', marginBottom: '8px' }}>
+          問題の準備ができました
+        </h3>
+        <p style={{ color: '#64748b', fontSize: '15px', lineHeight: '1.6', marginBottom: '20px' }}>
+          この単元の問題をすべて解き終えたか、または問題が見つかりませんでした。<br />
+          別の単元を選ぶか、トップ画面からもう一度挑戦してみよう！
+        </p>
+        <button className="back-home-btn" onClick={onCancel} style={{ minWidth: '140px' }}>
+          トップへもどる
+        </button>
       </div>
     );
   }
