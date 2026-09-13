@@ -129,17 +129,70 @@ export const storage = {
               }
             });
             
-            // レポート取得・マージ
+            // レポート取得・マージ（セッション単位での完全マージ＆データ消失防止）
             const reportsRes = await fetch(`/api/reports/${p.id}`);
             const serverReports: DailyReport[] = reportsRes.ok ? await reportsRes.json() : [];
             const localReportsStr = localStorage.getItem(`kids_learnquest_reports_${p.id}`);
             const localReports: DailyReport[] = localReportsStr ? JSON.parse(localReportsStr) : [];
-            const mergedReports = [...serverReports];
-            localReports.forEach(lr => {
-              if (!mergedReports.some(sr => sr.date === lr.date)) {
-                mergedReports.push(lr);
+
+            // 全日付を収集して日ごとに正しくセッションをマージ
+            const allDates = Array.from(new Set([
+              ...serverReports.map(r => r.date),
+              ...localReports.map(r => r.date)
+            ]));
+
+            const mergedReports: DailyReport[] = allDates.map(date => {
+              const sr = serverReports.find(r => r.date === date);
+              const lr = localReports.find(r => r.date === date);
+
+              if (sr && !lr) return sr;
+              if (!sr && lr) return lr;
+
+              // サーバーとローカルの両方に同一日付のレポートがある場合
+              // セッションIDまたはタイムスタンプをキーにして重複なく結合
+              const sessionMap = new Map<string, QuizSession>();
+              (sr?.sessions || []).forEach(sess => sessionMap.set(sess.id || `${sess.subject}-${sess.timestamp}`, sess));
+              (lr?.sessions || []).forEach(sess => sessionMap.set(sess.id || `${sess.subject}-${sess.timestamp}`, sess));
+
+              const combinedSessions = Array.from(sessionMap.values());
+
+              if (combinedSessions.length > 0) {
+                let questionsAttempted = 0;
+                let questionsCorrect = 0;
+                const subjectMinutes: Record<Subject, number> = { math: 0, japanese: 0, science: 0, social: 0, english: 0 };
+                const subjectBreakdown: Partial<Record<Subject, { total: number; correct?: number }>> = {};
+
+                combinedSessions.forEach(sess => {
+                  questionsAttempted += sess.questionsAttempted;
+                  questionsCorrect += sess.questionsCorrect;
+                  if (sess.subject) {
+                    subjectMinutes[sess.subject] = (subjectMinutes[sess.subject] || 0) + (sess.durationMinutes || 0);
+                    if (!subjectBreakdown[sess.subject]) {
+                      subjectBreakdown[sess.subject] = { total: 0, correct: 0 };
+                    }
+                    subjectBreakdown[sess.subject]!.total += sess.questionsAttempted;
+                    subjectBreakdown[sess.subject]!.correct = (subjectBreakdown[sess.subject]!.correct || 0) + sess.questionsCorrect;
+                  }
+                });
+
+                return {
+                  date,
+                  questionsAttempted,
+                  questionsCorrect,
+                  totalQuestions: questionsAttempted,
+                  subjectMinutes,
+                  subjectBreakdown,
+                  sessions: combinedSessions
+                };
               }
+
+              // セッション情報のない旧データは解いた問題数が多い方を優先
+              return (lr!.questionsAttempted >= sr!.questionsAttempted) ? lr! : sr!;
             });
+
+            const todayStr = new Date().toISOString().split('T')[0];
+            const todayReport = mergedReports.find(r => r.date === todayStr);
+            console.log(`[Quiz Progress] レポート同期完了: [${p.id}] (本日累計: ${todayReport?.questionsAttempted || 0}問, 解答時間: ${Math.round((todayReport?.subjectMinutes ? Object.values(todayReport.subjectMinutes).reduce((a, b) => a + (b || 0), 0) : 0) * 10) / 10}分)`);
 
             // SRS（記憶定着）データ取得・マージ
             const srsRes = await fetch(`/api/srs/${p.id}`);
@@ -635,6 +688,7 @@ export const storage = {
 
     // 1. ローカル保存
     localStorage.setItem(key, JSON.stringify(reports));
+    console.log(`[Quiz Progress] 解答記録完了: [${targetId}] ${subject} +${attempted}問 (+${durationMinutes.toFixed(2)}分) -> 本日累計: ${todayReport.questionsAttempted}問, ${todayReport.questionsCorrect}問正解, セッション数: ${todayReport.sessions.length}`);
 
     // 2. サーバーDBへ非同期送信
     try {

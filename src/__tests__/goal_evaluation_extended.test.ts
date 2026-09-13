@@ -50,17 +50,31 @@ describe('Extended Daily Goal Evaluation Tests', () => {
     expect(checkIsDailyGoalAchieved(goalFail, mockReport)).toBe(false);
   });
 
-  it('goalType="subject_specific" with both questions and minutes requires both to pass', () => {
-    const goal: DailyGoal = {
+  it('goalType="subject_specific" with both questions and minutes passes if either questions or minutes is met', () => {
+    // math has 5 questions and 6 mins
+    // パターン1: 問題数達成(5問)だが時間未達(10分) -> 問題数クリアで達成
+    const goalQuestionsMet: DailyGoal = {
       targetQuestions: 5,
       targetMinutes: 10,
       rewardText: 'ご褒美',
       goalType: 'subject_specific',
       subjectGoals: {
-        math: { targetQuestions: 5, targetMinutes: 10 } // math has 5 questions (pass) but 6 mins (fail)
+        math: { targetQuestions: 5, targetMinutes: 10 }
       }
     };
-    expect(checkIsDailyGoalAchieved(goal, mockReport)).toBe(false);
+    expect(checkIsDailyGoalAchieved(goalQuestionsMet, mockReport)).toBe(true);
+
+    // パターン2: 両方未達(10問、10分) -> 未達
+    const goalNeitherMet: DailyGoal = {
+      targetQuestions: 10,
+      targetMinutes: 10,
+      rewardText: 'ご褒美',
+      goalType: 'subject_specific',
+      subjectGoals: {
+        math: { targetQuestions: 10, targetMinutes: 10 }
+      }
+    };
+    expect(checkIsDailyGoalAchieved(goalNeitherMet, mockReport)).toBe(false);
   });
 
   it('goalType="subject_specific" passes when both questions and minutes are met', () => {

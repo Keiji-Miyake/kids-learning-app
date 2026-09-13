@@ -70,7 +70,7 @@ export const getSubjectProgressSummary = (
 
     let isCompleted = true;
     if (hasQuestionsTarget && hasMinutesTarget) {
-      isCompleted = currentQuestions >= targetQuestions && currentMinutes >= targetMinutes && isAccuracyAcceptable;
+      isCompleted = (currentQuestions >= targetQuestions || currentMinutes >= targetMinutes) && isAccuracyAcceptable;
     } else if (hasQuestionsTarget) {
       isCompleted = currentQuestions >= targetQuestions && isAccuracyAcceptable;
     } else if (hasMinutesTarget) {

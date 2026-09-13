@@ -32,11 +32,19 @@ export const generateUniqueQuizSet = (
     if (clean.includes('三平方') || clean.includes('ピタゴラス')) return ['三平方', 'ピタゴラス'];
     if (clean.includes('一次関数') || clean.includes('傾き')) return ['一次関数', '変化の割合', '傾き'];
     if (clean.includes('連立方程式') || clean.includes('連立')) return ['連立方程式', '連立'];
-    if (clean.includes('オーム')) return ['オーム', '回路', '電流'];
+    if (clean.includes('オーム') || clean.includes('回路') || clean.includes('電流')) return ['オーム', '回路', '電流', '電圧', '抵抗'];
+    if (clean.includes('化学変化') || clean.includes('原子') || clean.includes('分子')) return ['化学変化', '原子', '分子', '化学反応', '酸化', '還元', '化合', '分解', '元素'];
+    if (clean.includes('水溶液') || clean.includes('イオン') || clean.includes('中和')) return ['水溶液', 'イオン', '中和', '酸', 'アルカリ', '電解質'];
+    if (clean.includes('地震') || clean.includes('火山') || clean.includes('大地')) return ['地震', '震度', 'P波', 'S波', 'マグニチュード', '火山', '地層'];
+    if (clean.includes('天体') || clean.includes('月') || clean.includes('太陽') || clean.includes('宇宙')) return ['天体', '月', '太陽', '星', '星座', '夏の大三角', '自転', '公転'];
+    if (clean.includes('細胞') || clean.includes('遺伝') || clean.includes('生殖')) return ['細胞', '遺伝', '生殖', 'メンデル', '受精', '胚珠', '子房'];
+    if (clean.includes('光') || clean.includes('音') || clean.includes('力') || clean.includes('レンズ')) return ['凸レンズ', '焦点', '実像', '反射', '屈折', 'ジュール', '仕事'];
     if (clean.includes('時差')) return ['時差', '経度'];
     if (clean.includes('関係代名詞')) return ['関係代名詞'];
     if (clean.includes('現在完了')) return ['現在完了'];
     if (clean.includes('地図記号')) return ['地図記号'];
+    if (clean.includes('地方') || clean.includes('雨温図') || clean.includes('地理')) return ['地方', '雨温図', '気候', '県庁', '特産', '都道府県'];
+    if (clean.includes('歴史') || clean.includes('時代') || clean.includes('幕府')) return ['時代', '幕府', '天皇', '将軍', '条約', '戦い', '大政奉還', '平安京', '平城京'];
     if (clean.includes('たしざん')) return ['たしざん', 'たす', 'あわせる', '＋'];
     if (clean.includes('ひきざん')) return ['ひきざん', 'ひく', 'のこり', '-'];
     if (clean.includes('わり算') || clean.includes('あまり')) return ['わり算', '割', 'あまり', '÷'];
@@ -212,29 +220,39 @@ export const generateUniqueQuizSet = (
 
   // --------------------------------------------------------------------------
   // 🌟 Stage 4: 同教科・同学年の他単元または総合動的問題の補充
-  // 単元内の問題が物理的に不足している場合、同教科・同学年の他問題で補充
+  // 単元指定モード時は他単元を一切混ぜず、指定単元の動的バリエーションのみで補充
   // --------------------------------------------------------------------------
   if (resultSet.length < count) {
-    const fallbackFixed = baseFixed
-      .filter(q => {
-        const srsItem = srsData ? srsData[generateQuestionKey(q)] : undefined;
-        return !srsItem?.isMastered;
-      })
-      .sort(() => Math.random() - 0.5);
+    if (!isStrictUnitMode) {
+      const fallbackFixed = baseFixed
+        .filter(q => {
+          const srsItem = srsData ? srsData[generateQuestionKey(q)] : undefined;
+          return !srsItem?.isMastered;
+        })
+        .sort(() => Math.random() - 0.5);
 
-    for (const q of fallbackFixed) {
-      if (resultSet.length >= count) break;
-      addCandidate(q);
-    }
+      for (const q of fallbackFixed) {
+        if (resultSet.length >= count) break;
+        addCandidate(q);
+      }
 
-    let generalDynAttempts = 0;
-    while (resultSet.length < count && generalDynAttempts < 150) {
-      generalDynAttempts++;
-      const dyn = generateDynamicQuestion(subject, grade);
-      const dynKey = generateQuestionKey(dyn);
-      const dynSrsItem = srsData ? srsData[dynKey] : undefined;
-      if (dynSrsItem?.isMastered) continue;
-      addCandidate(dyn);
+      let generalDynAttempts = 0;
+      while (resultSet.length < count && generalDynAttempts < 150) {
+        generalDynAttempts++;
+        const dyn = generateDynamicQuestion(subject, grade);
+        const dynKey = generateQuestionKey(dyn);
+        const dynSrsItem = srsData ? srsData[dynKey] : undefined;
+        if (dynSrsItem?.isMastered) continue;
+        addCandidate(dyn);
+      }
+    } else {
+      // 単元指定モード時は、指定単元の動的バリエーション問題のみを生成
+      let unitDynAttempts = 0;
+      while (resultSet.length < count && unitDynAttempts < 150) {
+        unitDynAttempts++;
+        const dyn = generateDynamicQuestion(subject, grade, unitName);
+        addCandidate(dyn);
+      }
     }
   }
 
@@ -243,7 +261,8 @@ export const generateUniqueQuizSet = (
   // 全問マスター済みの場合でも、マスター済み問題からシャッフルして出題
   // --------------------------------------------------------------------------
   if (resultSet.length < count) {
-    const allFixed = [...unitFixed, ...baseFixed].sort(() => Math.random() - 0.5);
+    const candidateFixed = isStrictUnitMode ? unitFixed : [...unitFixed, ...baseFixed];
+    const allFixed = [...candidateFixed].sort(() => Math.random() - 0.5);
     for (const q of allFixed) {
       if (resultSet.length >= count) break;
       addCandidate(q);
