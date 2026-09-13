@@ -6,6 +6,7 @@ import { storage } from '../utils/storage';
 describe('保護者管理画面 学習履歴詳細アコーディオンUIテスト (Parent Dashboard History Accordion Test)', () => {
   beforeEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
     const profile = storage.getActiveProfile();
     storage.addReportData('math', 1, 120, profile.id, 2, {
       unitName: 'かけ算九九',
@@ -73,6 +74,7 @@ describe('保護者管理画面 学習履歴詳細アコーディオンUIテス�
 
   it('データが0件のとき、案内メッセージとサンプル追加ボタンが表示され、クリックで履歴テーブルが現れること', async () => {
     localStorage.clear();
+    sessionStorage.clear();
     const profile = storage.getActiveProfile();
     storage.clearReports(profile.id);
 

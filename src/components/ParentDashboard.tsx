@@ -31,8 +31,8 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onClose }) => 
   const [profiles, setProfiles] = useState<UserProfile[]>(storage.getProfiles());
   const [selectedProfileId, setSelectedProfileId] = useState<string>(storage.getActiveProfileId());
   
-  // 保護者認証ステート (親ユーザーのみ知るマスターパスワード)
-  const [isParentUnlocked, setIsParentUnlocked] = useState<boolean>(false);
+  // 保護者認証ステート (親ユーザーのみ知るマスターパスワード、リロード時はsessionStorageで維持)
+  const [isParentUnlocked, setIsParentUnlocked] = useState<boolean>(() => storage.isParentAuthenticated());
   const [parentInputPassword, setParentInputPassword] = useState<string>('');
   const [authError, setAuthError] = useState<string>('');
 
@@ -170,12 +170,19 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onClose }) => 
     const isValid = await storage.verifyParentPasswordAsync(parentInputPassword);
     if (isValid) {
       sound.playCorrect();
+      storage.setParentAuthenticated(true);
       setIsParentUnlocked(true);
       setAuthError('');
     } else {
       sound.playWrong();
       setAuthError('❌ 保護者パスワードが正しくありません。');
     }
+  };
+
+  const handleLogout = () => {
+    sound.playClick();
+    storage.setParentAuthenticated(false);
+    setIsParentUnlocked(false);
   };
 
   const handleChangeParentPassword = (e: React.FormEvent) => {
@@ -427,6 +434,23 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onClose }) => 
           style={{ padding: '10px 18px', borderRadius: '12px', fontWeight: 'bold', fontSize: '15px' }}
         >
           ⚙️ 保護者設定
+        </button>
+        <button
+          type="button"
+          className="nav-tab-btn logout-btn"
+          onClick={handleLogout}
+          style={{
+            marginLeft: 'auto',
+            padding: '10px 18px',
+            borderRadius: '12px',
+            fontWeight: 'bold',
+            fontSize: '15px',
+            backgroundColor: '#fee2e2',
+            color: '#b91c1c',
+            border: '1px solid #fecaca'
+          }}
+        >
+          🔒 ログアウト
         </button>
       </div>
 

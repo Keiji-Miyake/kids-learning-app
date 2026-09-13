@@ -5,6 +5,7 @@ import { calculateGradeFromBirthDate } from './gradeCalculator';
 const PROFILES_KEY = 'kids_learnquest_profiles_list';
 const ACTIVE_PROFILE_KEY = 'kids_learnquest_active_profile_id';
 const PARENT_PASSWORD_KEY = 'kids_learnquest_parent_master_password';
+const PARENT_SESSION_KEY = 'kids_learnquest_parent_auth_session';
 
 
 const createInitialStats = (): UserStats => ({
@@ -855,6 +856,45 @@ export const storage = {
     // 重複を整理し、最新30件を保持
     const unique = Array.from(new Set(texts)).slice(-30);
     localStorage.setItem(key, JSON.stringify(unique));
+  },
+
+  // 🔐 保護者認証セッションの取得 (リロード時のログアウト防止対応)
+  isParentAuthenticated(): boolean {
+    try {
+      if (typeof sessionStorage !== 'undefined') {
+        const session = sessionStorage.getItem(PARENT_SESSION_KEY);
+        if (session) {
+          const parsed = JSON.parse(session);
+          if (parsed.authenticated && parsed.expiresAt && Date.now() < parsed.expiresAt) {
+            return true;
+          }
+        }
+      }
+    } catch {
+      // ignore parsing error
+    }
+    return false;
+  },
+
+  // 🔐 保護者認証セッションの保存 / 破棄
+  setParentAuthenticated(authenticated: boolean): void {
+    try {
+      if (typeof sessionStorage !== 'undefined') {
+        if (authenticated) {
+          sessionStorage.setItem(
+            PARENT_SESSION_KEY,
+            JSON.stringify({
+              authenticated: true,
+              expiresAt: Date.now() + 60 * 60 * 1000 // 1時間有効
+            })
+          );
+        } else {
+          sessionStorage.removeItem(PARENT_SESSION_KEY);
+        }
+      }
+    } catch {
+      // ignore
+    }
   }
 };
 

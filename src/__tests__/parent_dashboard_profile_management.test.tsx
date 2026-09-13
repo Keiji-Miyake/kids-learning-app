@@ -6,6 +6,7 @@ import { storage } from '../utils/storage';
 describe('管理画面でのプロフィール一元管理テスト (Parent Dashboard Profile Management)', () => {
   beforeEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
     storage.setParentPassword('1234');
   });
 

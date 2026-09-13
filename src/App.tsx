@@ -30,8 +30,22 @@ import type { DayOfWeek } from './types';
 export const App: React.FC = () => {
   const [activeProfile, setActiveProfile] = useState<UserProfile>(storage.getActiveProfile());
   const [stats, setStats] = useState<UserStats>(storage.getStats(activeProfile.id));
-  const [currentScreen, setCurrentScreen] = useState<string>('home'); // home | quiz | result | shop | collection | review | dashboard
-  const [showProfileModal, setShowProfileModal] = useState<boolean>(true);
+  const [currentScreen, setCurrentScreen] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      if (window.location.hash === '#dashboard' || sessionStorage.getItem('kids_learnquest_current_screen') === 'dashboard') {
+        return 'dashboard';
+      }
+    }
+    return 'home';
+  }); // home | quiz | result | shop | collection | review | dashboard
+  const [showProfileModal, setShowProfileModal] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      if (window.location.hash === '#dashboard' || sessionStorage.getItem('kids_learnquest_current_screen') === 'dashboard') {
+        return false;
+      }
+    }
+    return true;
+  });
   const [previousScreenBeforeDashboard, setPreviousScreenBeforeDashboard] = useState<string | null>(null);
   const [showGoalAchievedModal, setShowGoalAchievedModal] = useState<boolean>(false);
   const [gridCols, setGridCols] = useState<'auto' | 'cols-2' | 'cols-3'>('cols-3');
@@ -96,6 +110,26 @@ export const App: React.FC = () => {
       clearInterval(timerId);
     };
   }, []);
+
+  // 🔄 画面遷移時にURLハッシュおよびセッション記憶を同期（リロード時の画面復元用）
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      if (currentScreen === 'dashboard') {
+        sessionStorage.setItem('kids_learnquest_current_screen', 'dashboard');
+        if (window.location.hash !== '#dashboard') {
+          window.location.hash = 'dashboard';
+        }
+      } else {
+        sessionStorage.removeItem('kids_learnquest_current_screen');
+        if (window.location.hash === '#dashboard') {
+          window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, [currentScreen]);
 
   const handleUpdateStats = (newStats: UserStats) => {
     setStats(newStats);
