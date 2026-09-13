@@ -110,6 +110,7 @@ export const App: React.FC = () => {
     setActiveProfile(profile);
     const updatedStreak = storage.checkAndUpdateStreak(profile.id);
     setStats({ ...storage.getStats(profile.id), streak: updatedStreak });
+    setRecentQuestionTexts(storage.getRecentQuestionTexts(profile.id));
     setShowProfileModal(false);
     setCurrentScreen('home');
   };
@@ -119,9 +120,11 @@ export const App: React.FC = () => {
   };
 
 
-  // クイズで直前に解いた問題のIDおよびテキストキャッシュ (被り防止)
+  // クイズで直前に解いた問題のIDおよびテキストキャッシュ (被り防止・ストレージ永続化対応)
   const [recentQuestionIds, setRecentQuestionIds] = useState<string[]>([]);
-  const [recentQuestionTexts, setRecentQuestionTexts] = useState<string[]>([]);
+  const [recentQuestionTexts, setRecentQuestionTexts] = useState<string[]>(() => {
+    return storage.getRecentQuestionTexts(activeProfile.id);
+  });
   const [activeUnit, setActiveUnit] = useState<CurriculumUnit | undefined>(undefined);
 
   const handleSelectSubject = (subject: Subject, grade: number, unit?: CurriculumUnit) => {
@@ -129,14 +132,17 @@ export const App: React.FC = () => {
     setActiveGrade(grade);
     const unitName = unit ? unit.unitName : '';
     const srsData = storage.getSRSData(activeProfile.id);
+    const effectiveTexts = recentQuestionTexts.length > 0 ? recentQuestionTexts : storage.getRecentQuestionTexts(activeProfile.id);
 
     // 重複を100%排除し、SRS（忘却曲線クールダウン・マスター除外・復習優先）を適用した5問を生成
-    let selected5 = generateUniqueQuizSet(subject, grade, 5, unitName, recentQuestionIds, recentQuestionTexts, srsData);
+    let selected5 = generateUniqueQuizSet(subject, grade, 5, unitName, recentQuestionIds, effectiveTexts, srsData);
     if (selected5.length === 0) {
       selected5 = generateUniqueQuizSet(subject, grade, 5);
     }
-    setRecentQuestionIds(prev => [...prev.slice(-20), ...selected5.map(q => q.id)]);
-    setRecentQuestionTexts(prev => [...prev.slice(-20), ...selected5.map(q => q.questionText)]);
+    const updatedTexts = [...effectiveTexts.slice(-30), ...selected5.map(q => q.questionText)];
+    setRecentQuestionIds(prev => [...prev.slice(-30), ...selected5.map(q => q.id)]);
+    setRecentQuestionTexts(updatedTexts);
+    storage.saveRecentQuestionTexts(updatedTexts, activeProfile.id);
 
     setActiveQuestions(selected5);
     setActiveSubject(subject);
@@ -153,14 +159,18 @@ export const App: React.FC = () => {
     setActiveSubject(subject);
     setActiveGrade(grade);
     const srsData = storage.getSRSData(activeProfile.id);
+    const effectiveTexts = recentQuestionTexts.length > 0 ? recentQuestionTexts : storage.getRecentQuestionTexts(activeProfile.id);
 
     // 10問の完全ユニーク本格単元テスト問題を生成
-    let examPool = generateUniqueQuizSet(subject, grade, 10, unit.unitName, recentQuestionIds, recentQuestionTexts, srsData);
+    let examPool = generateUniqueQuizSet(subject, grade, 10, unit.unitName, recentQuestionIds, effectiveTexts, srsData);
     if (examPool.length === 0) {
       examPool = generateUniqueQuizSet(subject, grade, 10);
     }
-    setRecentQuestionIds(prev => [...prev.slice(-20), ...examPool.map(q => q.id)]);
-    setRecentQuestionTexts(prev => [...prev.slice(-20), ...examPool.map(q => q.questionText)]);
+    const updatedTexts = [...effectiveTexts.slice(-30), ...examPool.map(q => q.questionText)];
+    setRecentQuestionIds(prev => [...prev.slice(-30), ...examPool.map(q => q.id)]);
+    setRecentQuestionTexts(updatedTexts);
+    storage.saveRecentQuestionTexts(updatedTexts, activeProfile.id);
+
     setExamQuestions(examPool);
     setCurrentScreen('exam');
   };

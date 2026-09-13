@@ -600,7 +600,20 @@ const generateJapanese = (grade: number, uName: string, idSuffix: string): Quest
       { q: '四字熟語「以心伝心」の意味として正しいものは？', a: '言葉にしなくても互いに心が通じ合うこと', w: ['手紙で伝えること', '電話で話すこと', '秘密を守ること'] },
       { q: '漢字「森」の部首は何かな？', a: 'き（木）', w: ['ひ（日）', 'やま（山）', 'ひと（人）'] },
       { q: '漢字「校」の部首は何かな？', a: 'きへん（木）', w: ['ごんべん（言）', 'へん（片）', 'さんずい（氵）'] },
-      { q: '漢字「語」の部首は何かな？', a: 'ごんべん（言）', w: ['にんべん（イ）', 'くち（口）', 'きへん（木）'] }
+      { q: '漢字「語」の部首は何かな？', a: 'ごんべん（言）', w: ['にんべん（イ）', 'くち（口）', 'きへん（木）'] },
+      { q: '慣用句「猫の手も借りたい」の意味はどれかな？', a: 'とても忙しくてだれでもいいから手伝ってほしいこと', w: ['猫と遊びたいこと', '手が痛いこと', '爪が伸びていること'] },
+      { q: '慣用句「すずめの涙」の意味はどれかな？', a: 'ごくわずかな量のこと', w: ['悲しいこと', '鳥が鳴くこと', '大雨が降ること'] },
+      { q: '慣用句「目と鼻の先」の意味はどれかな？', a: '距離がとても近いこと', w: ['顔が大きいこと', '遠くて見えないこと', 'においがすること'] },
+      { q: '慣用句「腹を割る」の意味はどれかな？', a: '本心を包み隠さず打ち明けること', w: ['お腹がいっぱいになること', 'お腹が痛くなること', '怒り出すこと'] },
+      { q: 'ことわざ「急がば [       ]」 空欄に入る言葉は？', a: '回れ', w: ['走れ', '休め', '飛べ'] },
+      { q: 'ことわざ「花より [       ]」 空欄に入る言葉は？', a: '団子', w: ['果物', 'お金', '景色'] },
+      { q: 'ことわざ「ちりも積もれば [       ]」 空欄に入る言葉は？', a: '山となる', w: ['海となる', '森となる', '川となる'] },
+      { q: 'ことわざ「能ある鷹は [       ]」 空欄に入る言葉は？', a: '爪を隠す', w: ['空を飛ぶ', '獲物を追う', '目を光らす'] },
+      { q: '「親切（しんせつ）」の反対の意味のことば（対義語）は？', a: '不親切（冷淡）', w: ['丁寧', '活発', '正直'] },
+      { q: '「原因（げんいん）」の反対の意味のことば（対義語）は？', a: '結果', w: ['理由', '目的', '最初'] },
+      { q: '「安心（あんしん）」の反対の意味のことば（対義語）は？', a: '不安', w: ['安全', '危険', '恐怖'] },
+      { q: '漢字「親切」の「親」の正しい読み方はどれかな？', a: 'しん', w: ['おや', 'した', 'み'] },
+      { q: '漢字「準備」の「備」の正しい読み方はどれかな？', a: 'び', w: ['そな', 'じゅん', 'ぼう'] }
     ];
     const item = jElemDB[getRandomInt(0, jElemDB.length - 1)];
     return {
@@ -614,7 +627,7 @@ const generateJapanese = (grade: number, uName: string, idSuffix: string): Quest
     };
   }
 
-  // 中学生（grade 7〜9）: 文法、品詞、古文、漢文、四字熟語
+  // 中学生（grade 7〜9）: 文法、品詞、古文、漢文、四字熟語、敬語
   const jJhsDB = [
     { q: '「油断大敵」の意味として正しいものはどれかな？', a: '気を許すと大変な失敗をするということ', w: ['油を大量に使うこと', '敵と仲良くすること', '大声を出すこと'] },
     { q: '「温故知新」の読み方はどれかな？', a: 'おんこちしん', w: ['おんこちちん', 'おんふるちしん', 'ぬくもりちしん'] },
@@ -627,11 +640,18 @@ const generateJapanese = (grade: number, uName: string, idSuffix: string): Quest
     { q: '漢文の返り点「一二点」において、先に読むのはどちらかな？', a: '「一」がついている字', w: ['「二」がついている字', 'どちらでもよい', '文頭の字'] },
     { q: '故事成語「矛盾」の由来となった武器の組み合わせは？', a: 'どんな盾も突き通す矛と、どんな矛も防ぐ盾', w: ['弓と矢', '刀と鎧', '鉄砲と兜'] },
     { q: '故事成語「蛇足」の意味として正しいものはどれかな？', a: '余計な付け足しをして、かえって台無しにすること', w: ['足が速いこと', '蛇を捕まえること', '足が長いこと'] },
+    { q: '故事成語「漁夫の利」の意味として正しいものは？', a: '両者が争っている隙に第三者が利益を横取りすること', w: ['魚がたくさん釣れること', '船を上手に操ること', '川で遊ぶこと'] },
+    { q: '故事成語「背水の陣」の意味として正しいものは？', a: '一歩も退けない覚悟で全力を尽くすこと', w: ['水辺でキャンプすること', '水を節約すること', '敵から逃げること'] },
+    { q: '相手を高めて敬意を表す敬語（先生が「いらっしゃる」等）はどれかな？', a: '尊敬語', w: ['謙譲語', '丁寧語', '美化語'] },
+    { q: '自分をへりくだることで相手に敬意を表す敬語（私が「伺う」等）はどれかな？', a: '謙譲語', w: ['尊敬語', '丁寧語', '美化語'] },
+    { q: '「先生が本を [       ]。」 空欄に入る正しい尊敬語は？', a: 'お読みになる', w: ['拝読する', '読むです', '読まれること'] },
+    { q: '「私が先生のお宅へ [       ]。」 空欄に入る正しい謙譲語は？', a: '伺う（参る）', w: ['いらっしゃる', '行かれる', 'おいでになる'] },
     { q: '動詞「走る」の活用形のうち、「走れば」の「走れ」は何形かな？', a: '仮定形', w: ['未然形', '連用形', '連体形'] },
     { q: '動詞「書く」の活用形のうち、「書かない」の「書か」は何形かな？', a: '未然形', w: ['連用形', '終止形', '命令形'] },
     { q: '「祇園精舎の鐘の声、諸行無常の響きあり」で始まる軍記物語は？', a: '平家物語', w: ['太平記', '保元物語', '平治物語'] },
     { q: '松尾芭蕉が東北や北陸を旅して著した紀行文はどれかな？', a: 'おくのほそ道', w: ['土佐日記', '更級日記', '東海道中膝栗毛'] },
-    { q: '四字熟語「臥薪嘗胆」の意味として正しいものは？', a: '将来の成功のために苦難に耐え忍ぶこと', w: ['美味しい料理を味わうこと', 'ぐっすり眠ること', '薪を集めること'] }
+    { q: '四字熟語「臥薪嘗胆」の意味として正しいものは？', a: '将来の成功のために苦難に耐え忍ぶこと', w: ['美味しい料理を味わうこと', 'ぐっすり眠ること', '薪を集めること'] },
+    { q: '四字熟語「切磋琢磨」の意味として正しいものは？', a: '仲間同士で励まし合い学問や技術を向上させること', w: ['石を削ること', '激しく喧嘩すること', '一人で集中すること'] }
   ];
   const item = jJhsDB[getRandomInt(0, jJhsDB.length - 1)];
   return {
@@ -665,7 +685,14 @@ const generateScience = (grade: number, uName: string, idSuffix: string): Questi
       { q: 'チョウの育ち方で「たまご → ようちゅう → [   ] → 成虫」に入るのは？', a: 'さなぎ', w: ['まゆ', 'おたまじゃくし', 'みずすまし'] },
       { q: '水が沸騰して湯気や水蒸気になる現象は何かな？', a: '蒸発（沸騰）', w: ['凝固', '融解', '光合成'] },
       { q: '朝顔（アサガオ）の花が咲く時間帯はいつごろかな？', a: '朝', w: ['昼', '夕方', '夜'] },
-      { q: 'てこの原理で、力を加える位置のことを何というか？', a: '力点', w: ['支点', '作用点', '重心'] }
+      { q: 'てこの原理で、力を加える位置のことを何というか？', a: '力点', w: ['支点', '作用点', '重心'] },
+      { q: '太陽が真南にきて、影の長さが一番短くなる時刻はおよそ何時かな？', a: '正午（12時ごろ）', w: ['午前9時', '午後3時', '午前6時'] },
+      { q: '夏の夜空に見える「夏の大三角」を形づくる星座は、はくちょう座・わし座と何かな？', a: 'こと座（ベガ）', w: ['オリオン座', 'さそり座', 'カシオペヤ座'] },
+      { q: '乾電池を2個「直列つなぎ」にすると、豆電球の明るさはどうなるかな？', a: '1個のときより明るくなる', w: ['1個のときより暗くなる', '変わらない', '消える'] },
+      { q: '空気中に一番多く含まれている気体は何かな？', a: '窒素（ちっそ）', w: ['酸素', '二酸化炭素', '水素'] },
+      { q: 'ものが燃えるのを助ける働きがある気体は何かな？', a: '酸素', w: ['窒素', '二酸化炭素', 'アルゴン'] },
+      { q: '石灰水を白くにごらせる性質がある気体は何かな？', a: '二酸化炭素', w: ['酸素', '水素', '窒素'] },
+      { q: '金属の中で、電気や熱をよく通し、磁石につかないものはどれかな？', a: 'アルミニウム', w: ['鉄', 'コバルト', 'ニッケル'] }
     ];
     const item = scElemDB[getRandomInt(0, scElemDB.length - 1)];
     return {
@@ -749,7 +776,15 @@ const generateSocial = (grade: number, uName: string, idSuffix: string): Questio
       { q: '地図記号で「歯車のような形」は何を表しているかな？', a: '工場', w: ['警察署', '駅', '学校'] },
       { q: '日本で太陽がのぼる方角はどれかな？', a: '東', w: ['西', '南', '北'] },
       { q: '日本で夕方に太陽が沈む方角はどれかな？', a: '西', w: ['東', '南', '北'] },
-      { q: '交番のおまわりさんの主なお仕事はどれかな？', a: '町のパトロールや道案内', w: ['火を消すこと', 'ごみを集めること', '病気の手術'] }
+      { q: '交番のおまわりさんの主なお仕事はどれかな？', a: '町のパトロールや道案内', w: ['火を消すこと', 'ごみを集めること', '病気の手術'] },
+      { q: '日本で一番面積が小さい都道府県はどこかな？', a: '香川県', w: ['大阪府', '東京都', '沖縄県'] },
+      { q: '日本で一番人口が多い都道府県はどこかな？', a: '東京都', w: ['神奈川県', '大阪府', '愛知県'] },
+      { q: 'りんごの生産量が日本一の都道府県はどこかな？', a: '青森県', w: ['長野県', '山形県', '秋田県'] },
+      { q: 'みかんの生産量が日本一の都道府県はどこかな？', a: '和歌山県', w: ['愛媛県', '静岡県', '熊本県'] },
+      { q: 'お茶の生産量が日本一の都道府県はどこかな？', a: '静岡県', w: ['鹿児島県', '三重県', '京都府'] },
+      { q: '地図記号で「果樹園（かじゅえん）」を表す記号はどれかな？', a: '丸の中に縦線が入った形', w: ['歯車', '鳥居', 'バツ印'] },
+      { q: '岩手県（いわてけん）の県庁所在地はどこかな？', a: '盛岡市', w: ['仙台市', '秋田市', '青森市'] },
+      { q: '兵庫県（ひょうごけん）の県庁所在地はどこかな？', a: '神戸市', w: ['姫路市', '西宮市', '尼崎市'] }
     ];
     const item = soElemDB[getRandomInt(0, soElemDB.length - 1)];
     return {
@@ -869,19 +904,16 @@ const generateEnglish = (grade: number, uName: string, idSuffix: string): Questi
     };
   }
 
-  // 中3: 関係代名詞・分詞修飾
-  if (uName.includes('関係代名詞') || uName.includes('分詞の後置修飾')) {
+  // 中3: 関係代名詞
+  if (uName.includes('関係代名詞')) {
     const relItems = [
       { q: '「The boy [       ] lives in Tokyo is my friend.」 空欄に入る関係代名詞（人・主格）は？', a: 'who', w: ['which', 'where', 'whose'] },
-      { q: '「This is the book [       ] I bought yesterday.」 空欄に入る関係代名詞（物・目的格）は？', a: 'which', w: ['who', 'where', 'what'] },
+      { q: '「This is the book [       ] that I bought yesterday.」 関係代名詞thatの代わりに使える語は？', a: 'which', w: ['who', 'where', 'what'] },
       { q: '「I have a friend [       ] father is a doctor.」 空欄に入る関係代名詞（所有格）は？', a: 'whose', w: ['who', 'which', 'whom'] },
       { q: '「This is the girl [       ] won the prize.」 空欄に入る関係代名詞（人・主格）は？', a: 'who', w: ['which', 'when', 'whose'] },
       { q: '「The car [       ] is running fast is red.」 空欄に入る関係代名詞（物・主格）は？', a: 'which', w: ['who', 'where', 'whom'] },
       { q: '「I know the boy [       ] loves cats.」 空欄に入る関係代名詞（人・主格）は？', a: 'who', w: ['which', 'whose', 'where'] },
-      { q: '「The girl [       ] tennis is my sister.」 （関係代名詞・分詞修飾：テニスをしている少女）空欄に入るのは？', a: 'playing', w: ['played', 'plays', 'play'] },
-      { q: '「This is a song [       ] by Ken.」 （関係代名詞・分詞修飾：ケンによって歌われた歌）空欄に入るのは？', a: 'sung', w: ['singing', 'sang', 'sings'] },
-      { q: '「The letter [       ] in English was easy to read.」 （関係代名詞・分詞修飾：英語で書かれた手紙）空欄に入るのは？', a: 'written', w: ['writing', 'wrote', 'writes'] },
-      { q: '「Look at the dog [       ] under the tree.」 （関係代名詞・分詞修飾：木の下で走っている犬）空欄に入るのは？', a: 'running', w: ['ran', 'run', 'runs'] }
+      { q: '「This is the dog [       ] barked all night.」 空欄に入る関係代名詞は？', a: 'that', w: ['who', 'where', 'whose'] }
     ];
     const target = relItems[getRandomInt(0, relItems.length - 1)];
     return {
@@ -895,65 +927,186 @@ const generateEnglish = (grade: number, uName: string, idSuffix: string): Questi
     };
   }
 
+  // 中3: 分詞の後置修飾
+  if (uName.includes('分詞') || uName.includes('後置修飾')) {
+    const partItems = [
+      { q: '「The girl [       ] tennis is my sister.」 （テニスをしている少女）空欄に入るのは？', a: 'playing', w: ['played', 'plays', 'play'] },
+      { q: '「This is a song [       ] by Ken.」 （ケンによって歌われた歌）空欄に入るのは？', a: 'sung', w: ['singing', 'sang', 'sings'] },
+      { q: '「The letter [       ] in English was easy to read.」 （英語で書かれた手紙）空欄に入るのは？', a: 'written', w: ['writing', 'wrote', 'writes'] },
+      { q: '「Look at the dog [       ] under the tree.」 （木の下で走っている犬）空欄に入るのは？', a: 'running', w: ['ran', 'run', 'runs'] },
+      { q: '「The man [       ] English well is our teacher.」 （英語を上手に話す男性）空欄に入るのは？', a: 'speaking', w: ['spoke', 'spoken', 'speaks'] },
+      { q: '「This is a picture [       ] by my mother.」 （母によって描かれた絵）空欄に入るのは？', a: 'painted', w: ['painting', 'paints', 'paint'] }
+    ];
+    const target = partItems[getRandomInt(0, partItems.length - 1)];
+    return {
+      id: `dyn-participle-${idSuffix}`,
+      subject: 'english',
+      grade: 9,
+      questionText: target.q,
+      options: ensureUniqueOptions([target.a, ...target.w], target.a, 'english'),
+      correctAnswer: target.a,
+      explanation: `正解は 「${target.a}」 です。`
+    };
+  }
+
   // 中3: 現在完了
   if (uName.includes('現在完了')) {
-    const verbs = [
-      { orig: 'live', p: 'lived', jp: '住んでいます' },
-      { orig: 'study', p: 'studied', jp: '勉強しています' },
-      { orig: 'know', p: 'known', jp: '知っています' },
-      { orig: 'play', p: 'played', jp: 'テニスをしています' },
-      { orig: 'teach', p: 'taught', jp: '教えています' },
-      { orig: 'work', p: 'worked', jp: '働いています' }
+    const subjectsList = [
+      { subj: 'I', have: 'have' },
+      { subj: 'You', have: 'have' },
+      { subj: 'He', have: 'has' },
+      { subj: 'She', have: 'has' },
+      { subj: 'We', have: 'have' },
+      { subj: 'Ken', have: 'has' }
     ];
+    const verbs = [
+      { orig: 'live', p: 'lived', jp: '住んでいます', obj: 'in Kyoto' },
+      { orig: 'study', p: 'studied', jp: '勉強しています', obj: 'math' },
+      { orig: 'know', p: 'known', jp: '知っています', obj: 'him' },
+      { orig: 'play', p: 'played', jp: '練習しています', obj: 'soccer' },
+      { orig: 'teach', p: 'taught', jp: '教えています', obj: 'English' },
+      { orig: 'work', p: 'worked', jp: '働いています', obj: 'here' }
+    ];
+    const s = subjectsList[getRandomInt(0, subjectsList.length - 1)];
     const v = verbs[getRandomInt(0, verbs.length - 1)];
-    const years = getRandomInt(2, 7);
-    const ans = `I have ${v.p} English for ${years} years.`;
+    const years = getRandomInt(2, 8);
+    const ans = `${s.subj} ${s.have} ${v.p} ${v.obj} for ${years} years.`;
     const opts = shuffle([
       ans,
-      `I ${v.orig} English for ${years} years.`,
-      `I am ${v.orig}ing English ${years} years.`,
-      `I was ${v.p} English since ${years} years.`
+      `${s.subj} ${v.orig} ${v.obj} for ${years} years.`,
+      `${s.subj} is ${v.orig}ing ${v.obj} ${years} years.`,
+      `${s.subj} was ${v.p} ${v.obj} since ${years} years.`
     ]);
     return {
       id: `dyn-en-perf-${idSuffix}`,
       subject: 'english',
       grade: 9,
-      questionText: `「私は${years}年間、英語を${v.jp}（現在完了・継続）」の正しい英文はどれかな？`,
+      questionText: `「${s.subj === 'I' ? '私' : s.subj}は${years}年間、${v.obj}で${v.jp}（現在完了・継続）」の正しい英文は？`,
       options: ensureUniqueOptions(opts, ans, 'english'),
       correctAnswer: ans,
-      explanation: `過去から現在までの継続を表すには [have + 過去分詞 + for 時間] を使います。`
+      explanation: `過去から現在までの継続を表すには [主語 + have/has + 過去分詞 + for 時間] を使います。`
     };
   }
 
-  // 中学生向け標準（文法・語彙）
-  const jhsVocab = [
-    { q: '「彼は毎日テニスをします。」He [      ] tennis every day. 空欄に入るのは？', a: 'plays', w: ['play', 'playing', 'is play'] },
-    { q: '「私は昨日、京都へ行きました。」I [      ] to Kyoto yesterday. 空欄に入るのは？', a: 'went', w: ['go', 'goes', 'going'] },
-    { q: '「明日は晴れるでしょう（未来）。」It [      ] be sunny tomorrow. 空欄に入るのは？', a: 'will', w: ['was', 'did', 'is to'] },
-    { q: '「彼女は親切な先生です。」She [      ] a kind teacher. 空欄に入るbe動詞は？', a: 'is', w: ['are', 'am', 'be'] },
-    { q: '「彼らは公園で走っています（現在進行形）。」They [      ] in the park. 空欄に入るのは？', a: 'are running', w: ['is running', 'running', 'ran'] },
-    { q: '「私は英語を勉強するために図書館へ行きました（不定詞）。」I went to the library [      ] English.', a: 'to study', w: ['studying', 'studied', 'study'] },
-    { q: '「この部屋は毎日掃除されます（受動態）。」This room [      ] every day.', a: 'is cleaned', w: ['cleaned', 'cleaning', 'cleans'] },
-    { q: '英単語 「difficult」 の意味はどれかな？', a: '難しい', w: ['簡単な', '面白い', '大切な'] },
-    { q: '英単語 「important」 の意味はどれかな？', a: '重要な', w: ['退屈な', '危険な', '静かな'] },
-    { q: '英単語 「popular」 の意味はどれかな？', a: '人気のある', w: ['珍しい', '高価な', '静かな'] },
-    { q: '英単語 「experience」 の意味はどれかな？', a: '経験', w: ['実験', '危険', '希望'] },
-    { q: '英単語 「environment」 の意味はどれかな？', a: '環境', w: ['社会', '経済', '自然'] },
-    { q: '英単語 「tradition」 の意味はどれかな？', a: '伝統', w: ['科学', '法律', '教育'] },
-    { q: '英単語 「necessary」 の意味はどれかな？', a: '必要な', w: ['危険な', '美しい', '静かな'] },
-    { q: '「私は犬を2匹飼っています。」I [      ] two dogs. 空欄に入るのは？', a: 'have', w: ['has', 'having', 'am'] },
-    { q: '「彼は上手にピアノを弾くことができます。」He [      ] play the piano well.', a: 'can', w: ['is', 'are', 'do'] }
-  ];
-  const item = jhsVocab[getRandomInt(0, jhsVocab.length - 1)];
-  return {
-    id: `dyn-en-jhs-${idSuffix}`,
-    subject: 'english',
-    grade: grade || 8,
-    questionText: item.q,
-    options: ensureUniqueOptions([item.a, ...item.w], item.a, 'english'),
-    correctAnswer: item.a,
-    explanation: `正解は 「${item.a}」 です。`
-  };
+  // 🌟 動的英文法・語彙合成エンジン (Dynamic Grammar Generator)
+  // 主語・動詞・時制・助動詞を組み合わせて何百通りもの問題を自動生成
+  const grammarMode = getRandomInt(1, 4);
+
+  if (grammarMode === 1) {
+    // 1. 三人称単数現在 (3単現の -s / -es)
+    const subjs = [
+      { s: 'He', is3rd: true },
+      { s: 'She', is3rd: true },
+      { s: 'Ken', is3rd: true },
+      { s: 'My brother', is3rd: true },
+      { s: 'They', is3rd: false },
+      { s: 'We', is3rd: false },
+      { s: 'I', is3rd: false },
+      { s: 'You', is3rd: false }
+    ];
+    const actions = [
+      { vBase: 'play', v3rd: 'plays', vIng: 'playing', obj: 'tennis', jp: 'テニスをします' },
+      { vBase: 'read', v3rd: 'reads', vIng: 'reading', obj: 'books', jp: '本を読みます' },
+      { vBase: 'watch', v3rd: 'watches', vIng: 'watching', obj: 'TV', jp: 'テレビを見ます' },
+      { vBase: 'study', v3rd: 'studies', vIng: 'studying', obj: 'English', jp: '英語を勉強します' },
+      { vBase: 'clean', v3rd: 'clearns', vIng: 'clearning', obj: 'the room', jp: '部屋を掃除します' },
+      { vBase: 'help', v3rd: 'helps', vIng: 'helping', obj: 'his mother', jp: 'お母さんを手伝います' }
+    ];
+    const sub = subjs[getRandomInt(0, subjs.length - 1)];
+    const act = actions[getRandomInt(0, actions.length - 1)];
+    const correctV = sub.is3rd ? act.v3rd : act.vBase;
+    const wrongV1 = sub.is3rd ? act.vBase : act.v3rd;
+    const wrongV2 = act.vIng;
+    const wrongV3 = `is ${act.vBase}`;
+
+    return {
+      id: `dyn-en-3rd-${idSuffix}`,
+      subject: 'english',
+      grade: grade || 7,
+      questionText: `「${sub.s} [      ] ${act.obj} every day. （${sub.s}は毎日${act.jp}）」 空欄に入る正しい動詞は？`,
+      options: ensureUniqueOptions([correctV, wrongV1, wrongV2, wrongV3], correctV, 'english'),
+      correctAnswer: correctV,
+      explanation: sub.is3rd
+        ? `主語が三人称単数（he, she, 固有名詞など）の現在形では、動詞に -s や -es をつけます。`
+        : `主語が I, you, 複数形（they, we）の現在形では、動詞の原形を使います。`
+    };
+  } else if (grammarMode === 2) {
+    // 2. 過去形 (不規則動詞・規則動詞)
+    const pastActions = [
+      { base: 'go', past: 'went', obj: 'to school', jp: '学校へ行きました' },
+      { base: 'visit', past: 'visited', obj: 'Kyoto', jp: '京都を訪れました' },
+      { base: 'eat', past: 'ate', obj: 'lunch', jp: '昼食を食べました' },
+      { base: 'see', past: 'saw', obj: 'a movie', jp: '映画を見ました' },
+      { base: 'buy', past: 'bought', obj: 'a new pen', jp: '新しいペンを買いました' },
+      { base: 'make', past: 'made', obj: 'a cake', jp: 'ケーキを作りました' },
+      { base: 'write', past: 'wrote', obj: 'a letter', jp: '手紙を書きました' },
+      { base: 'have', past: 'had', obj: 'a good time', jp: '楽しい時間を過ごしました' }
+    ];
+    const pSubjs = ['I', 'Ken', 'She', 'We', 'They', 'My father'];
+    const pSub = pSubjs[getRandomInt(0, pSubjs.length - 1)];
+    const pAct = pastActions[getRandomInt(0, pastActions.length - 1)];
+
+    return {
+      id: `dyn-en-past-${idSuffix}`,
+      subject: 'english',
+      grade: grade || 8,
+      questionText: `「${pSub} [      ] ${pAct.obj} yesterday. （昨日、${pAct.jp}）」 空欄に入る過去形は？`,
+      options: ensureUniqueOptions([pAct.past, pAct.base, `${pAct.base}ing`, `was ${pAct.base}`], pAct.past, 'english'),
+      correctAnswer: pAct.past,
+      explanation: `過去の出来事（yesterday）を表すため、動詞の過去形「${pAct.past}」を使います。`
+    };
+  } else if (grammarMode === 3) {
+    // 3. 助動詞・不定詞・進行形・受動態
+    const specialGrammar = [
+      { q: '「彼女は上手にピアノを弾くことができます（可能）。」She [      ] play the piano well.', a: 'can', w: ['is', 'are', 'does'] },
+      { q: '「私たちは明日、公園に行く予定です（未来）。」We [      ] go to the park tomorrow.', a: 'will', w: ['was', 'did', 'are'] },
+      { q: '「あなたは部屋を掃除しなければなりません（義務）。」You [      ] clean your room.', a: 'must', w: ['are', 'can to', 'did'] },
+      { q: '「私は英語を学ぶために本を読みました（不定詞）。」I read books [      ] English.', a: 'to learn', w: ['learning', 'learned', 'learns'] },
+      { q: '「彼は今、音楽を聴いています（現在進行形）。」He is [      ] to music now.', a: 'listening', w: ['listens', 'listened', 'listen'] },
+      { q: '「この車は日本で作られました（受動態）。」This car [      ] in Japan.', a: 'was made', w: ['is make', 'making', 'made by'] },
+      { q: '「私はいつかオーストラリアに行きたいです（want to）。」I [      ] visit Australia someday.', a: 'want to', w: ['wanting', 'wanted', 'wants'] },
+      { q: '「図書館では静かにしなければなりません。」You must [      ] quiet in the library.', a: 'be', w: ['is', 'are', 'was'] }
+    ];
+    const item = specialGrammar[getRandomInt(0, specialGrammar.length - 1)];
+    return {
+      id: `dyn-en-spec-${idSuffix}`,
+      subject: 'english',
+      grade: grade || 8,
+      questionText: item.q,
+      options: ensureUniqueOptions([item.a, ...item.w], item.a, 'english'),
+      correctAnswer: item.a,
+      explanation: `正解は 「${item.a}」 です。`
+    };
+  } else {
+    // 4. 豊富な重要英単語・語彙（数十語からランダム出題）
+    const richVocab = [
+      { q: '英単語 「difficult」 の意味はどれかな？', a: '難しい', w: ['簡単な', '面白い', '大切な'] },
+      { q: '英単語 「important」 の意味はどれかな？', a: '重要な・大切な', w: ['退屈な', '危険な', '静かな'] },
+      { q: '英単語 「popular」 の意味はどれかな？', a: '人気のある', w: ['珍しい', '高価な', '静かな'] },
+      { q: '英単語 「experience」 の意味はどれかな？', a: '経験', w: ['実験', '危険', '希望'] },
+      { q: '英単語 「environment」 の意味はどれかな？', a: '環境', w: ['社会', '経済', '自然'] },
+      { q: '英単語 「tradition」 の意味はどれかな？', a: '伝統', w: ['科学', '法律', '教育'] },
+      { q: '英単語 「necessary」 の意味はどれかな？', a: '必要な', w: ['危険な', '美しい', '静かな'] },
+      { q: '英単語 「future」 の意味はどれかな？', a: '未来・将来', w: ['過去', '現在', '世界'] },
+      { q: '英単語 「peace」 の意味はどれかな？', a: '平和', w: ['戦争', '自由', '希望'] },
+      { q: '英単語 「culture」 の意味はどれかな？', a: '文化', w: ['自然', '歴史', '科学'] },
+      { q: '英単語 「scientist」 の意味はどれかな？', a: '科学者', w: ['医者', '芸術家', '宇宙飛行士'] },
+      { q: '英単語 「improve」 の意味はどれかな？', a: '向上させる・改善する', w: ['破壊する', '止める', '始める'] },
+      { q: '英単語 「protect」 の意味はどれかな？', a: '保護する・守る', w: ['攻撃する', '忘れる', '探す'] },
+      { q: '英単語 「discover」 の意味はどれかな？', a: '発見する', w: ['失う', '隠す', '修理する'] },
+      { q: '英単語 「pollution」 の意味はどれかな？', a: '汚染・公害', w: ['リサイクル', '温暖化', '森林'] }
+    ];
+    const item = richVocab[getRandomInt(0, richVocab.length - 1)];
+    return {
+      id: `dyn-en-vocab-${idSuffix}`,
+      subject: 'english',
+      grade: grade || 8,
+      questionText: item.q,
+      options: ensureUniqueOptions([item.a, ...item.w], item.a, 'english'),
+      correctAnswer: item.a,
+      explanation: `正解は 「${item.a}」 です。`
+    };
+  }
 };
 
 // 🌟 選択された教科・学年・単元名に応じた高機能動的問題生成エンジン

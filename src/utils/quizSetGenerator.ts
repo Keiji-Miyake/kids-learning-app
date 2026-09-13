@@ -163,6 +163,7 @@ export const generateUniqueQuizSet = (
   // --------------------------------------------------------------------------
   // 🌟 Stage 3: SRSクールダウン中問題の復習再出題（マスター除外は維持）
   // 単元内の未マスター問題がクールダウン中の場合、復習・ノルマ達成のため再出題
+  // LRU（最終解答日時が古い順）＋ランダムシャッフルで偏りを防止
   // --------------------------------------------------------------------------
   if (resultSet.length < count) {
     const coolingFixed = unitFixed
@@ -173,22 +174,39 @@ export const generateUniqueQuizSet = (
       .sort((a, b) => {
         const itemA = srsData ? srsData[generateQuestionKey(a)] : undefined;
         const itemB = srsData ? srsData[generateQuestionKey(b)] : undefined;
-        return (itemA?.stage || 0) - (itemB?.stage || 0); // 低いステージ優先
+        // 1. 最終解答日時が古いもの（昔解いたもの）を優先して復習
+        const dateA = itemA?.lastAttemptedAt || '0000-00-00';
+        const dateB = itemB?.lastAttemptedAt || '0000-00-00';
+        if (dateA !== dateB) {
+          return dateA.localeCompare(dateB);
+        }
+        // 2. ステージが低い（記憶定着が浅い）もの優先
+        if ((itemA?.stage || 0) !== (itemB?.stage || 0)) {
+          return (itemA?.stage || 0) - (itemB?.stage || 0);
+        }
+        // 3. 同条件の場合は完全ランダムシャッフル
+        return Math.random() - 0.5;
       });
 
-    for (const q of coolingFixed) {
-      if (resultSet.length >= count) break;
-      addCandidate(q);
-    }
-
+    // 動的問題と固定問題をバランスよく交互に補充
     let dynCoolingAttempts = 0;
-    while (resultSet.length < count && dynCoolingAttempts < 150) {
+    while (resultSet.length < count && (coolingFixed.length > 0 || dynCoolingAttempts < 150)) {
       dynCoolingAttempts++;
-      const dyn = generateDynamicQuestion(subject, grade, unitName);
-      const dynKey = generateQuestionKey(dyn);
-      const dynSrsItem = srsData ? srsData[dynKey] : undefined;
-      if (dynSrsItem?.isMastered) continue;
-      addCandidate(dyn);
+
+      // 動的問題の生成を優先的に試行
+      if (dynCoolingAttempts % 2 === 1 || coolingFixed.length === 0) {
+        const dyn = generateDynamicQuestion(subject, grade, unitName);
+        const dynKey = generateQuestionKey(dyn);
+        const dynSrsItem = srsData ? srsData[dynKey] : undefined;
+        if (!dynSrsItem?.isMastered) {
+          addCandidate(dyn);
+        }
+      } else {
+        const q = coolingFixed.shift();
+        if (q) {
+          addCandidate(q);
+        }
+      }
     }
   }
 

@@ -832,6 +832,29 @@ export const storage = {
       // ネットワーク接続エラー・オフライン時はローカルデータでフォールバック検証
     }
     return this.verifyParentPassword(trimmed);
+  },
+
+  // 📝 直近解いた問題テキストの取得（出題重複防止用）
+  getRecentQuestionTexts(profileId?: string): string[] {
+    const id = profileId || storage.getActiveProfileId();
+    const key = `kids_learnquest_recent_questions_${id}`;
+    const raw = localStorage.getItem(key);
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  },
+
+  // 📝 直近解いた問題テキストの保存（最大30件ローテーション）
+  saveRecentQuestionTexts(texts: string[], profileId?: string): void {
+    const id = profileId || storage.getActiveProfileId();
+    const key = `kids_learnquest_recent_questions_${id}`;
+    // 重複を整理し、最新30件を保持
+    const unique = Array.from(new Set(texts)).slice(-30);
+    localStorage.setItem(key, JSON.stringify(unique));
   }
 };
 
