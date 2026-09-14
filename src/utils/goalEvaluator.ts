@@ -173,8 +173,9 @@ export const checkIsDailyGoalAchieved = (
 
   // モード2: 1日の合計学習時間で判定
   if (mode === 'total_time') {
-    const totalMinutes = report.subjectMinutes
-      ? Object.values(report.subjectMinutes).reduce((acc, m) => acc + (m || 0), 0)
+    const minutesSource = rawReport.subjectMinutes || report.subjectMinutes;
+    const totalMinutes = minutesSource
+      ? Math.round(Object.values(minutesSource).reduce((acc, m) => acc + (m || 0), 0) * 10) / 10
       : 0;
     return totalMinutes >= (goal.targetMinutes || 10);
   }
@@ -244,8 +245,9 @@ export const getGoalProgress = (
 
 
   const todayQuestions = report.totalQuestions !== undefined ? report.totalQuestions : (report.questionsAttempted || 0);
-  const totalMinutes = report.subjectMinutes
-    ? Math.round(Object.values(report.subjectMinutes).reduce((acc, m) => acc + (m || 0), 0) * 10) / 10
+  const minutesSource = rawReport?.subjectMinutes || report.subjectMinutes;
+  const totalMinutes = minutesSource
+    ? Math.round(Object.values(minutesSource).reduce((acc, m) => acc + (m || 0), 0) * 10) / 10
     : 0;
 
   if (mode === 'total_count') {

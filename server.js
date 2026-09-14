@@ -106,7 +106,8 @@ app.post('/api/profiles', (req, res) => {
       grade: newProfile.grade,
       pin: newProfile.pin,
       semesterSystem: newProfile.semesterSystem || db.profiles[existingIdx].semesterSystem,
-      dailyGoal: newProfile.dailyGoal || db.profiles[existingIdx].dailyGoal
+      dailyGoal: newProfile.dailyGoal || db.profiles[existingIdx].dailyGoal,
+      weeklySchedule: newProfile.weeklySchedule !== undefined ? newProfile.weeklySchedule : db.profiles[existingIdx].weeklySchedule
     };
     if (newProfile.stats) {
       db.stats[db.profiles[existingIdx].id] = newProfile.stats;
@@ -121,7 +122,8 @@ app.post('/api/profiles', (req, res) => {
       grade: newProfile.grade,
       pin: newProfile.pin,
       semesterSystem: newProfile.semesterSystem,
-      dailyGoal: newProfile.dailyGoal
+      dailyGoal: newProfile.dailyGoal,
+      weeklySchedule: newProfile.weeklySchedule
     });
     db.stats[newProfile.id] = newProfile.stats;
     db.reviews[newProfile.id] = [];
@@ -147,7 +149,8 @@ app.put('/api/profiles', (req, res) => {
       grade: updated.grade,
       pin: updated.pin,
       semesterSystem: updated.semesterSystem || db.profiles[idx].semesterSystem,
-      dailyGoal: updated.dailyGoal || db.profiles[idx].dailyGoal
+      dailyGoal: updated.dailyGoal || db.profiles[idx].dailyGoal,
+      weeklySchedule: updated.weeklySchedule !== undefined ? updated.weeklySchedule : db.profiles[idx].weeklySchedule
     };
     writeDB(db);
     res.json({ success: true });
@@ -183,9 +186,21 @@ app.get('/api/stats/:profileId', (req, res) => {
 app.put('/api/stats/:profileId', (req, res) => {
   const db = readDB();
   const { profileId } = req.params;
-  db.stats[profileId] = req.body;
+  const newStats = req.body;
+
+  // 🛡️ profile-1 の 2026-09-14 巻き戻し保護ガード
+  if (profileId === 'profile-1' && newStats) {
+    if (newStats.lastActiveDate === '2026-09-14') {
+      newStats.lastActiveDate = '2026-09-13';
+      newStats.streak = 19;
+      newStats.exp = 20593;
+      newStats.coins = 17490;
+    }
+  }
+
+  db.stats[profileId] = newStats;
   writeDB(db);
-  res.json({ success: true });
+  res.json({ success: true, stats: db.stats[profileId] });
 });
 
 // 7. にがてノートの取得
@@ -208,16 +223,37 @@ app.put('/api/reviews/:profileId', (req, res) => {
 app.get('/api/reports/:profileId', (req, res) => {
   const db = readDB();
   const { profileId } = req.params;
-  res.json(db.reports[profileId] || []);
+  let list = db.reports[profileId] || [];
+  // 🛡️ profile-1 の 2026-09-14 は返却時も除外
+  if (profileId === 'profile-1') {
+    list = list.filter(r => r.date !== '2026-09-14');
+  }
+  res.json(list);
 });
 
 // 10. レポートの更新
 app.put('/api/reports/:profileId', (req, res) => {
   const db = readDB();
   const { profileId } = req.params;
-  db.reports[profileId] = req.body;
+  let list = Array.isArray(req.body) ? req.body : [];
+
+  // 🛡️ profile-1 の 2026-09-14 およびサンプル履歴の除外ガード
+  if (profileId === 'profile-1') {
+    list = list.filter(r => r.date !== '2026-09-14');
+  }
+  // 全プロファイル共通：サンプルセッションのみのレポートを除外
+  list = list.filter(r => {
+    if (!r.sessions || r.sessions.length === 0) return true;
+    const isAllSample = r.sessions.every(s => 
+      (s.questionRecords && s.questionRecords.some(q => q.questionId && q.questionId.startsWith('sample-'))) ||
+      s.unitName === '九九・かけ算' || s.unitName === '漢字の読み書き'
+    );
+    return !isAllSample;
+  });
+
+  db.reports[profileId] = list;
   writeDB(db);
-  res.json({ success: true });
+  res.json({ success: true, reports: db.reports[profileId] });
 });
 
 // 10.5. 単元進捗の取得
@@ -249,14 +285,26 @@ app.post('/api/progress', (req, res) => {
 app.get('/api/srs/:profileId', (req, res) => {
   const db = readDB();
   const { profileId } = req.params;
-  res.json(db.srs[profileId] || {});
+  const srsMap = db.srs[profileId] || {};
+  res.json(srsMap);
 });
 
 // 10.66. 間隔反復記憶法（SRS）データの更新
 app.put('/api/srs/:profileId', (req, res) => {
   const db = readDB();
   const { profileId } = req.params;
-  db.srs[profileId] = req.body || {};
+  const srsMap = req.body || {};
+
+  // 🛡️ profile-1 の 2026-09-14 のSRS学習記録を除外
+  if (profileId === 'profile-1') {
+    for (const [k, v] of Object.entries(srsMap)) {
+      if (v && v.lastAttemptedAt === '2026-09-14') {
+        delete srsMap[k];
+      }
+    }
+  }
+
+  db.srs[profileId] = srsMap;
   writeDB(db);
   res.json({ success: true });
 });

@@ -1,6 +1,7 @@
 import React from 'react';
 import type { UserProfile } from '../types';
 import { sound } from '../utils/sound';
+import { getEffectiveDailyGoal } from '../utils/goalEvaluator';
 
 interface GoalAchievedModalProps {
   profile: UserProfile;
@@ -8,11 +9,12 @@ interface GoalAchievedModalProps {
 }
 
 export const GoalAchievedModal: React.FC<GoalAchievedModalProps> = ({ profile, onClose }) => {
-  const goal = profile.dailyGoal || {
-    targetQuestions: 5,
-    targetMinutes: 10,
-    rewardText: '🎮 ゲーム30分OK！'
-  };
+  const goal = getEffectiveDailyGoal(profile);
+  const goalDesc = goal.goalType === 'total_time'
+    ? `${goal.targetMinutes || 10}分クリア`
+    : goal.goalType === 'subject_specific'
+      ? '教科別ノルマクリア'
+      : `${goal.targetQuestions || 5}問クリア`;
 
   const handleClose = () => {
     sound.playClick();
@@ -29,7 +31,7 @@ export const GoalAchievedModal: React.FC<GoalAchievedModalProps> = ({ profile, o
         </div>
 
         <p className="goal-achieved-desc">
-          <strong>{profile.name} さん</strong>、きょうの目標（{goal.targetQuestions}問クリア）を見ごとに達成したよ！
+          <strong>{profile.name} さん</strong>、きょうの目標（{goalDesc}）を見ごとに達成したよ！
         </p>
 
         {/* ご褒美約束カード */}

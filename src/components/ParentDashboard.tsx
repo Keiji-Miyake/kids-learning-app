@@ -11,6 +11,8 @@ import { calculateGradeFromBirthDate } from '../utils/gradeCalculator';
 
 interface ParentDashboardProps {
   onClose: () => void;
+  initialTab?: 'report' | 'goal' | 'profiles' | 'settings';
+  initialProfileId?: string;
 }
 
 export const verifyParentChallenge = (num1: number, num2: number, answer: number): boolean => {
@@ -24,12 +26,14 @@ export const verifyParentPin = (profilePin?: string, inputPin?: string): boolean
 };
 
 
-export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onClose }) => {
+export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onClose, initialTab: _initialTab = 'report', initialProfileId }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   
   // プロファイル一覧
-  const [profiles, setProfiles] = useState<UserProfile[]>(storage.getProfiles());
-  const [selectedProfileId, setSelectedProfileId] = useState<string>(storage.getActiveProfileId());
+  const [profiles, setProfiles] = useState<UserProfile[]>(() => storage.getProfiles());
+  const [selectedProfileId, setSelectedProfileId] = useState<string>(() => {
+    return initialProfileId || storage.getActiveProfileId() || (profiles[0]?.id ?? 'profile-1');
+  });
   
   // 保護者認証ステート (親ユーザーのみ知るマスターパスワード、リロード時はsessionStorageで維持)
   const [isParentUnlocked, setIsParentUnlocked] = useState<boolean>(() => storage.isParentAuthenticated());
@@ -160,8 +164,8 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onClose }) => 
     }
   };
 
-  // 現在選択中プロファイル
-  const targetProfile = profiles.find(p => p.id === selectedProfileId) || profiles[0];
+  // 現在選択中プロファイル（最新のノルマ・スケジュール設定をstorageから即時反映）
+  const targetProfile = storage.getProfile(selectedProfileId) || profiles.find(p => p.id === selectedProfileId) || profiles[0];
 
   const handleParentAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -210,6 +214,18 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onClose }) => 
   };
 
   const [_reportVersion, setReportVersion] = useState<number>(0);
+
+  // 🔄 選択プロファイル切り替え時およびマウント時にサーバーから最新学習レポートを取得・同期（クロスデバイス同期対応）
+  useEffect(() => {
+    let isMounted = true;
+    storage.fetchReportsAsync(selectedProfileId).then(() => {
+      if (isMounted) {
+        setReportVersion(v => v + 1);
+      }
+    }).catch(() => {});
+    return () => { isMounted = false; };
+  }, [selectedProfileId]);
+
   const reports: DailyReport[] = storage.getReports(selectedProfileId);
   const todayStr = new Date().toISOString().split('T')[0];
   const todayReport = reports.find(r => r.date === todayStr);
@@ -685,27 +701,64 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onClose }) => 
               </p>
             </div>
             {reports.length > 0 && (
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button
-                  type="button"
-                  className="secondary-btn"
-                  onClick={() => {
-                    sound.playClick();
-                    storage.addSampleReportData(selectedProfileId);
-                    setReportVersion(v => v + 1);
-                  }}
-                  style={{
-                    padding: '4px 10px',
-                    fontSize: '12px',
-                    borderRadius: '6px',
-                    background: '#eff6ff',
-                    color: '#2563eb',
-                    border: '1px solid #bfdbfe',
-                    cursor: 'pointer'
-                  }}
-                >
-                  ＋ サンプル履歴を追加
-                </button>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {todayReport && (
+                  <button
+                    type="button"
+                    className="secondary-btn"
+                    onClick={() => {
+                      if (window.confirm(`${targetProfile?.name || 'このプレイヤー'}の「今日（${todayStr}）」の学習履歴をリセットしますか？`)) {
+                        sound.playClick();
+                        storage.resetTodayReport(selectedProfileId);
+                        setReportVersion(v => v + 1);
+                      }
+                    }}
+                    style={{
+                      padding: '4px 10px',
+                      fontSize: '12px',
+                      borderRadius: '6px',
+                      background: '#fff7ed',
+                      color: '#ea580c',
+                      border: '1px solid #fed7aa',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    🔄 今日の履歴をリセット
+                  </button>
+                )}
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                  <select
+                    id="select-date-to-delete"
+                    defaultValue=""
+                    style={{
+                      padding: '4px 8px',
+                      fontSize: '12px',
+                      borderRadius: '6px',
+                      border: '1px solid #cbd5e1',
+                      background: '#ffffff',
+                      color: '#334155',
+                      cursor: 'pointer'
+                    }}
+                    onChange={(e) => {
+                      const d = e.target.value;
+                      if (!d) return;
+                      if (window.confirm(`${d} の学習履歴を削除しますか？\n（この日の学習記録・問題データがリセットされます）`)) {
+                        sound.playClick();
+                        storage.deleteReportByDate(d, selectedProfileId);
+                        if (expandedDate === d) setExpandedDate(null);
+                        setReportVersion(v => v + 1);
+                      }
+                      e.target.value = '';
+                    }}
+                  >
+                    <option value="" disabled>📅 日付を選んで削除...</option>
+                    {[...reports].sort((a, b) => b.date.localeCompare(a.date)).map(r => (
+                      <option key={r.date} value={r.date}>
+                        {r.date}（{r.questionsAttempted}問）
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <button
                   type="button"
                   className="secondary-btn"
@@ -726,7 +779,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onClose }) => 
                     cursor: 'pointer'
                   }}
                 >
-                  🗑️ 履歴をクリア
+                  🗑️ 全履歴をクリア
                 </button>
               </div>
             )}
@@ -744,35 +797,9 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onClose }) => 
               <p style={{ fontSize: '15px', fontWeight: 'bold', color: '#334155', margin: '0 0 6px 0' }}>
                 まだ学習履歴データがありません
               </p>
-              <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 16px 0', lineHeight: '1.6', maxWidth: '480px', marginLeft: 'auto', marginRight: 'auto' }}>
+              <p style={{ fontSize: '13px', color: '#64748b', margin: 0, lineHeight: '1.6', maxWidth: '480px', marginLeft: 'auto', marginRight: 'auto' }}>
                 お子様がクイズや単元確認テストをプレイすると、ここに日付別の学習時間・単元・解いた問題や正誤・解説が記録され、詳細を確認できるようになります。
               </p>
-              <button
-                type="button"
-                className="sample-data-btn"
-                onClick={() => {
-                  sound.playClick();
-                  storage.addSampleReportData(selectedProfileId);
-                  setReportVersion(v => v + 1);
-                }}
-                style={{
-                  padding: '9px 18px',
-                  background: '#2563eb',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontWeight: 'bold',
-                  fontSize: '13px',
-                  boxShadow: '0 2px 4px rgba(37, 99, 235, 0.2)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
-              >
-                <span>🧪</span>
-                <span>動作確認用サンプル学習履歴を追加する</span>
-              </button>
             </div>
           ) : (
             <div className="table-responsive">
@@ -787,7 +814,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onClose }) => 
                   </tr>
                 </thead>
                 <tbody>
-                  {[...reports].reverse().slice(0, 14).map((r, i) => {
+                  {[...reports].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 14).map((r, i) => {
                     const dailyAcc = r.questionsAttempted > 0 ? Math.round((r.questionsCorrect / r.questionsAttempted) * 100) : 0;
                     const isExpanded = expandedDate === r.date;
                     const dayTotalMinutes = Object.values(r.subjectMinutes || {}).reduce((acc, m) => acc + m, 0);
@@ -804,17 +831,49 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onClose }) => 
                           <td>{r.questionsCorrect}問</td>
                           <td style={{ color: getAccuracyColor(dailyAcc), fontWeight: 'bold' }}>{dailyAcc}%</td>
                           <td>
-                            <button
-                              type="button"
-                              className="detail-toggle-btn"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                sound.playClick();
-                                setExpandedDate(isExpanded ? null : r.date);
-                              }}
-                            >
-                              {isExpanded ? '▲ 詳細を閉じる' : '▼ 詳細を見る'}
-                            </button>
+                            <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
+                              <button
+                                type="button"
+                                className="detail-toggle-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  sound.playClick();
+                                  setExpandedDate(isExpanded ? null : r.date);
+                                }}
+                              >
+                                {isExpanded ? '▲ 詳細を閉じる' : '▼ 詳細を見る'}
+                              </button>
+                              <button
+                                type="button"
+                                className="delete-date-btn"
+                                title={`${r.date} の学習履歴を削除`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (window.confirm(`${r.date} の学習履歴を削除しますか？\n（この日の学習記録・問題データがリセットされます）`)) {
+                                    sound.playClick();
+                                    storage.deleteReportByDate(r.date, selectedProfileId);
+                                    if (expandedDate === r.date) setExpandedDate(null);
+                                    setReportVersion(v => v + 1);
+                                  }
+                                }}
+                                style={{
+                                  padding: '5px 10px',
+                                  fontSize: '12px',
+                                  fontWeight: 'bold',
+                                  borderRadius: '6px',
+                                  border: '1px solid #fecaca',
+                                  background: '#fff1f2',
+                                  color: '#e11d48',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}
+                              >
+                                <span>🗑️</span>
+                                <span>削除</span>
+                              </button>
+                            </div>
                           </td>
                         </tr>
 
@@ -872,7 +931,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onClose }) => 
                                   </p>
                                 ) : (
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                                    {r.sessions.map((sess, sIdx) => {
+                                    {[...(r.sessions || [])].reverse().map((sess, sIdx) => {
                                       const subBadge = getSubjectBadge(sess.subject);
                                       const records = sess.questionRecords || [];
                                       const filteredRecords = onlyWrongFilter

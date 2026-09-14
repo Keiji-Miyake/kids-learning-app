@@ -72,35 +72,50 @@ describe('保護者管理画面 学習履歴詳細アコーディオンUIテス�
     expect(screen.getByText(/7 × 8 は？/)).toBeTruthy();
   });
 
-  it('データが0件のとき、案内メッセージとサンプル追加ボタンが表示され、クリックで履歴テーブルが現れること', async () => {
+  it('データが0件のとき案内メッセージが表示され、学習データが追加されると履歴テーブルが現れること', async () => {
     localStorage.clear();
     sessionStorage.clear();
     const profile = storage.getActiveProfile();
     storage.clearReports(profile.id);
 
-    render(<ParentDashboard onClose={() => {}} />);
+    const { rerender } = render(<ParentDashboard onClose={() => {}} />);
     const passInput = screen.getByPlaceholderText('保護者パスワード');
     fireEvent.change(passInput, { target: { value: 'parent' } });
     fireEvent.click(screen.getByText(/ログインして進む/));
 
-    // 最初はデータがない案内メッセージと追加ボタンが表示される
+    // 最初はデータがない案内メッセージが表示される（サンプル追加ボタンはないこと）
     expect(await screen.findByText(/まだ学習履歴データがありません/)).toBeTruthy();
-    const addSampleBtn = screen.getByRole('button', { name: /動作確認用サンプル学習履歴を追加する/ });
-    expect(addSampleBtn).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /動作確認用サンプル/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /サンプル履歴を追加/ })).toBeNull();
 
     // テーブルはまだ存在しない
     expect(screen.queryByRole('button', { name: /詳細を見る/ })).toBeNull();
 
-    // サンプル追加ボタンをクリック
-    fireEvent.click(addSampleBtn);
+    // 学習データが追加された場合
+    storage.addReportData('math', 5, 120, profile.id, 5, {
+      unitName: '式の計算・連立方程式',
+      sessionType: 'quiz',
+      questionRecords: [
+        {
+          questionId: 'q-real-1',
+          questionText: '連立方程式 x ＋ y = 8 を解きなさい。',
+          selectedAnswer: 'x = 2, y = 6',
+          correctAnswer: 'x = 2, y = 6',
+          isCorrect: true,
+          explanation: '正解です。'
+        }
+      ]
+    });
+
+    rerender(<ParentDashboard onClose={() => {}} />);
 
     // テーブルと詳細を見るボタンが出現する
     const detailBtn = await screen.findByRole('button', { name: /詳細を見る/ });
     expect(detailBtn).toBeTruthy();
 
-    // 詳細を開いてサンプル問題を確認
+    // 詳細を開いて問題を確認
     fireEvent.click(detailBtn);
-    expect(screen.getByText(/九九・かけ算/)).toBeTruthy();
-    expect(screen.getByText(/3 × 4 は いくらかな？/)).toBeTruthy();
+    expect(screen.getByText(/式の計算・連立方程式/)).toBeTruthy();
+    expect(screen.getByText(/連立方程式 x ＋ y = 8 を解きなさい。/)).toBeTruthy();
   });
 });

@@ -88,7 +88,8 @@ export const ProfileSelectorModal: React.FC<ProfileSelectorModalProps> = ({
   const loginAs = (profile: UserProfile) => {
     storage.setActiveProfileId(profile.id);
     setActiveId(profile.id);
-    onSelectProfile(profile);
+    const freshProfile = storage.getProfile(profile.id) || profile;
+    onSelectProfile(freshProfile);
     onClose();
   };
 

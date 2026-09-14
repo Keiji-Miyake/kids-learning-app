@@ -604,7 +604,14 @@ export const App: React.FC = () => {
 
         {currentScreen === 'dashboard' && (
           <ParentDashboard
+            initialProfileId={activeProfile.id}
             onClose={() => {
+              // 🎯 保護者管理画面で変更された最新のプロファイル設定（ノルマ・曜日別スケジュール等）を即時反映
+              const latestProfile = storage.getActiveProfile();
+              setActiveProfile(latestProfile);
+              setActiveGrade(latestProfile.grade || 3);
+              setStats(storage.getStats(latestProfile.id));
+
               if (previousScreenBeforeDashboard === 'profileModal') {
                 setShowProfileModal(true);
                 setCurrentScreen('home');

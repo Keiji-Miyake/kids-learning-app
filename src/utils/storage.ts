@@ -1,4 +1,4 @@
-import type { UserProfile, UserStats, ReviewItem, DailyReport, Subject, DailyGoal, QuizSession, SemesterSystem, Question, QuestionSRSItem, SessionQuestionRecord } from '../types';
+import type { UserProfile, UserStats, ReviewItem, DailyReport, Subject, DailyGoal, QuizSession, SemesterSystem, Question, QuestionSRSItem, SessionQuestionRecord, WeeklySchedule } from '../types';
 import { evaluateSRSAnswer, generateQuestionKey } from './spacedRepetition';
 import { calculateGradeFromBirthDate } from './gradeCalculator';
 
@@ -36,6 +36,80 @@ const defaultProfiles: UserProfile[] = [
   { id: 'profile-2', name: 'はなこ', avatarEmoji: '👧', grade: 5, dailyGoal: defaultDailyGoal, stats: createInitialStats() },
   { id: 'profile-3', name: 'じろう', avatarEmoji: '👶', grade: 1, dailyGoal: defaultDailyGoal, stats: createInitialStats() }
 ];
+
+// 🧪 サンプル学習データのセッション判定（誤投入データの自動クリーンアップ用）
+export function isSampleSession(session: QuizSession): boolean {
+  if (!session) return false;
+  if (session.questionRecords && session.questionRecords.some(q => q.questionId && q.questionId.startsWith('sample-'))) {
+    return true;
+  }
+  if (session.unitName === '九九・かけ算' || session.unitName === '漢字の読み書き') {
+    if (session.questionRecords && session.questionRecords.some(q =>
+      q.questionText?.includes('3 × 4') ||
+      q.questionText?.includes('「山」の訓読み')
+    )) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// 🧹 レポート配列からサンプル履歴を自動検出・完全除去＆再集計
+export function sanitizeReports(reports: DailyReport[]): DailyReport[] {
+  if (!Array.isArray(reports)) return [];
+  const result: DailyReport[] = [];
+
+  for (const report of reports) {
+    if (!report.sessions || report.sessions.length === 0) {
+      result.push(report);
+      continue;
+    }
+
+    const validSessions = report.sessions.filter(s => !isSampleSession(s));
+
+    // サンプルセッションが含まれていた場合
+    if (validSessions.length < report.sessions.length) {
+      // 有効なセッションが残っていない場合（サンプルデータのみで構成されたレポート）
+      if (validSessions.length === 0) {
+        // レポートから除外（未学習としてリセット）
+        continue;
+      }
+
+      // 有効なセッションが残っている場合は、本物のセッションのみで再集計
+      let questionsAttempted = 0;
+      let questionsCorrect = 0;
+      const subjectMinutes: Record<Subject, number> = { math: 0, japanese: 0, science: 0, social: 0, english: 0 };
+      const subjectBreakdown: Partial<Record<Subject, { total: number; correct?: number }>> = {};
+
+      validSessions.forEach(sess => {
+        questionsAttempted += (sess.questionsAttempted || 0);
+        questionsCorrect += (sess.questionsCorrect || 0);
+        if (sess.subject) {
+          subjectMinutes[sess.subject] = (subjectMinutes[sess.subject] || 0) + (sess.durationMinutes || 0);
+          if (!subjectBreakdown[sess.subject]) {
+            subjectBreakdown[sess.subject] = { total: 0, correct: 0 };
+          }
+          subjectBreakdown[sess.subject]!.total += (sess.questionsAttempted || 0);
+          subjectBreakdown[sess.subject]!.correct = (subjectBreakdown[sess.subject]!.correct || 0) + (sess.questionsCorrect || 0);
+        }
+      });
+
+      result.push({
+        ...report,
+        questionsAttempted,
+        questionsCorrect,
+        totalQuestions: questionsAttempted,
+        subjectMinutes,
+        subjectBreakdown,
+        sessions: validSessions
+      });
+    } else {
+      result.push(report);
+    }
+  }
+
+  return result;
+}
 
 export const storage = {
   // サーバー上のデータベースとローカルを同期させる
@@ -213,10 +287,14 @@ export const storage = {
               }
             });
 
+            // 🧹 サンプルデータのパージ
+            const cleanReports = sanitizeReports(mergedReports);
+
             // LocalStorage に即時キャッシュ保存
             localStorage.setItem(`kids_learnquest_stats_${p.id}`, JSON.stringify(finalStats));
             localStorage.setItem(`kids_learnquest_review_${p.id}`, JSON.stringify(mergedReviews));
-            localStorage.setItem(`kids_learnquest_reports_${p.id}`, JSON.stringify(mergedReports));
+            localStorage.setItem(`kids_learnquest_reports_${p.id}`, JSON.stringify(cleanReports));
+            localStorage.setItem(`kids_learnquest_reports_backup_${p.id}`, JSON.stringify(cleanReports));
             localStorage.setItem(`kids_learnquest_srs_${p.id}`, JSON.stringify(mergedSRS));
 
             // サーバー側へ最新の最高進捗データを逆同期バックアップ保存
@@ -231,12 +309,17 @@ export const storage = {
               body: JSON.stringify(mergedSRS)
             }).catch(() => {});
 
-            // 🎯 ノルマ設定(dailyGoal)は保護者変更のサーバー最新値を最優先（デフォルト ➔ ローカル ➔ サーバー）
+            // 🎯 ノルマ設定(dailyGoal)はローカルで新しく変更されたものを優先・安全マージ
             const mergedGoal: DailyGoal = {
               ...(defaultDailyGoal),
-              ...(localP?.dailyGoal || {}),
-              ...(p.dailyGoal || {})
+              ...(p.dailyGoal || {}),
+              ...(localP?.dailyGoal || {})
             };
+
+            const mergedWeeklySchedule: WeeklySchedule | undefined =
+              localP?.weeklySchedule !== undefined
+                ? localP.weeklySchedule
+                : p.weeklySchedule;
 
             return {
               ...p,
@@ -246,6 +329,7 @@ export const storage = {
               pin: p.pin !== undefined ? p.pin : localP?.pin,
               grade: p.grade || localP?.grade || 3,
               dailyGoal: mergedGoal,
+              weeklySchedule: mergedWeeklySchedule,
               semesterSystem: p.semesterSystem || localP?.semesterSystem,
               stats: finalStats
             };
@@ -594,17 +678,206 @@ export const storage = {
     return updatedItem;
   },
 
-  // 学習レポート取得（プロファイル単位）
+  // 学習レポート取得（プロファイル単位・バックアップ自動復旧ガード付き・サンプル自動サニタイズ）
   getReports(profileId?: string): DailyReport[] {
     const targetId = profileId || storage.getActiveProfileId();
     const key = `kids_learnquest_reports_${targetId}`;
+    const backupKey = `kids_learnquest_reports_backup_${targetId}`;
     const data = localStorage.getItem(key);
-    if (!data) return [];
-    try {
-      return JSON.parse(data);
-    } catch {
+
+    let parsedReports: DailyReport[] | null = null;
+
+    if (data) {
+      try {
+        const parsed = JSON.parse(data);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          parsedReports = parsed;
+        }
+      } catch {
+        // パースエラー時はバックアップからの復旧へ
+      }
+    }
+
+    // 通常キーが空・破損の場合、バックアップから自動復旧
+    if (!parsedReports) {
+      const backupData = localStorage.getItem(backupKey);
+      if (backupData) {
+        try {
+          const parsedBackup = JSON.parse(backupData);
+          if (Array.isArray(parsedBackup) && parsedBackup.length > 0) {
+            parsedReports = parsedBackup;
+            localStorage.setItem(key, backupData);
+            console.warn(`[Quiz Progress] 学習レポートをバックアップから自動復旧しました: [${targetId}]`);
+          }
+        } catch {}
+      }
+    }
+
+    if (!parsedReports) {
       return [];
     }
+
+    // 🧹 サンプルデータが含まれている場合は自動的にサニタイズ（パージ）
+    const sanitized = sanitizeReports(parsedReports);
+    if (JSON.stringify(sanitized) !== JSON.stringify(parsedReports)) {
+      localStorage.setItem(key, JSON.stringify(sanitized));
+      localStorage.setItem(backupKey, JSON.stringify(sanitized));
+      try {
+        if (typeof window !== 'undefined' && window.location) {
+          fetch(`/api/reports/${targetId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(sanitized)
+          }).catch(() => {});
+        }
+      } catch {}
+      console.log(`[Quiz Progress] サンプル学習履歴を自動パージ・保存しました: [${targetId}]`);
+    } else {
+      localStorage.setItem(backupKey, JSON.stringify(sanitized));
+    }
+
+    return sanitized;
+  },
+
+  // サーバーから最新の学習レポートを非同期取得・安全マージ（クロスデバイス同期対応・消失防止）
+  async fetchReportsAsync(profileId?: string): Promise<DailyReport[]> {
+    const targetId = profileId || storage.getActiveProfileId();
+    const key = `kids_learnquest_reports_${targetId}`;
+    const backupKey = `kids_learnquest_reports_backup_${targetId}`;
+    const localReports = this.getReports(targetId);
+
+    try {
+      const reportsRes = await fetch(`/api/reports/${targetId}`);
+      if (!reportsRes.ok) return localReports;
+      const serverReports: DailyReport[] = await reportsRes.json();
+
+      const allDates = Array.from(new Set([
+        ...serverReports.map(r => r.date),
+        ...localReports.map(r => r.date)
+      ])).sort((a, b) => a.localeCompare(b));
+
+      const mergedReports: DailyReport[] = allDates.map(date => {
+        const sr = serverReports.find(r => r.date === date);
+        const lr = localReports.find(r => r.date === date);
+
+        if (sr && !lr) return sr;
+        if (!sr && lr) return lr;
+
+        // サーバーとローカル双方にデータがある場合はセッションを重複なく結合
+        const sessionMap = new Map<string, QuizSession>();
+        (sr?.sessions || []).forEach((sess, idx) => {
+          const sKey = sess.id || `${sess.subject}-${sess.timestamp || ''}-${sess.unitName || ''}-${idx}`;
+          sessionMap.set(sKey, sess);
+        });
+        (lr?.sessions || []).forEach((sess, idx) => {
+          const sKey = sess.id || `${sess.subject}-${sess.timestamp || ''}-${sess.unitName || ''}-${idx}`;
+          sessionMap.set(sKey, sess);
+        });
+
+        const combinedSessions = Array.from(sessionMap.values());
+
+        if (combinedSessions.length > 0) {
+          let calcAttempted = 0;
+          let calcCorrect = 0;
+          const subjectMinutes: Record<Subject, number> = { math: 0, japanese: 0, science: 0, social: 0, english: 0 };
+          const subjectBreakdown: Partial<Record<Subject, { total: number; correct?: number }>> = {};
+
+          combinedSessions.forEach(sess => {
+             calcAttempted += (sess.questionsAttempted || 0);
+             calcCorrect += (sess.questionsCorrect || 0);
+             if (sess.subject) {
+               subjectMinutes[sess.subject] = (subjectMinutes[sess.subject] || 0) + (sess.durationMinutes || 0);
+               if (!subjectBreakdown[sess.subject]) {
+                 subjectBreakdown[sess.subject] = { total: 0, correct: 0 };
+               }
+               subjectBreakdown[sess.subject]!.total += (sess.questionsAttempted || 0);
+               subjectBreakdown[sess.subject]!.correct = (subjectBreakdown[sess.subject]!.correct || 0) + (sess.questionsCorrect || 0);
+             }
+          });
+
+          // 🌟 問題数・正解数は既存ローカル/サーバー値と再集計値の最大値を採用（絶対データ減衰・消失防止）
+          const questionsAttempted = Math.max(calcAttempted, lr?.questionsAttempted || 0, sr?.questionsAttempted || 0);
+          const questionsCorrect = Math.max(calcCorrect, lr?.questionsCorrect || 0, sr?.questionsCorrect || 0);
+
+          // 🌟 各科目の学習時間もローカル/サーバー/再集計値の最大値を採用（学習時間縮退・消失防止）
+          (Object.keys(subjectMinutes) as Subject[]).forEach(sub => {
+            subjectMinutes[sub] = Math.max(
+              subjectMinutes[sub],
+              lr?.subjectMinutes?.[sub] || 0,
+              sr?.subjectMinutes?.[sub] || 0
+            );
+          });
+
+          return {
+            date,
+            questionsAttempted,
+            questionsCorrect,
+            totalQuestions: questionsAttempted,
+            subjectMinutes,
+            subjectBreakdown,
+            sessions: combinedSessions
+          };
+        }
+
+        return (lr!.questionsAttempted >= sr!.questionsAttempted) ? lr! : sr!;
+      });
+
+      // 🧹 サンプルデータのパージ
+      const cleanReports = sanitizeReports(mergedReports);
+
+      const serialized = JSON.stringify(cleanReports);
+      localStorage.setItem(key, serialized);
+      localStorage.setItem(backupKey, serialized);
+      return cleanReports;
+    } catch (err) {
+      console.warn("レポートのサーバー非同期同期失敗:", err);
+      return localReports;
+    }
+  },
+
+  // 🧹 指定日付の学習レポートを手動削除（プロファイル単位・日々の記録から任意の日付を消去）
+  deleteReportByDate(targetDate: string, profileId?: string): void {
+    if (!targetDate) return;
+    const targetId = profileId || storage.getActiveProfileId();
+    const key = `kids_learnquest_reports_${targetId}`;
+    const backupKey = `kids_learnquest_reports_backup_${targetId}`;
+
+    const currentReports = this.getReports(targetId);
+    const filteredReports = currentReports.filter(r => r.date !== targetDate);
+
+    localStorage.setItem(key, JSON.stringify(filteredReports));
+    localStorage.setItem(backupKey, JSON.stringify(filteredReports));
+
+    // もし今日の日付を削除した場合、stats の lastActiveDate が今日であれば前回の学習日に戻す
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (targetDate === todayStr) {
+      const stats = this.getStats(targetId);
+      if (stats.lastActiveDate === todayStr) {
+        const remainingDates = filteredReports.map(r => r.date).sort();
+        const prevDate = remainingDates.length > 0 ? remainingDates[remainingDates.length - 1] : null;
+        stats.lastActiveDate = prevDate;
+        this.saveStats(stats, targetId);
+      }
+    }
+
+    try {
+      if (typeof window !== 'undefined' && window.location) {
+        fetch(`/api/reports/${targetId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(filteredReports)
+        }).catch(err => console.warn("指定日付レポート削除送信エラー:", err));
+      }
+    } catch (err) {
+      console.warn("指定日付レポート削除例外:", err);
+    }
+    console.log(`[Quiz Progress] 指定日付の学習レポートを削除しました: [${targetId}] (${targetDate})`);
+  },
+
+  // 🧹 本日の学習レポートをリセット（プロファイル単位）
+  resetTodayReport(profileId?: string): void {
+    const todayStr = new Date().toISOString().split('T')[0];
+    this.deleteReportByDate(todayStr, profileId);
   },
 
   // 学習レポートの更新
@@ -688,6 +961,11 @@ export const storage = {
 
     // 1. ローカル保存
     localStorage.setItem(key, JSON.stringify(reports));
+    try {
+      localStorage.setItem(`kids_learnquest_reports_backup_${targetId}`, JSON.stringify(reports));
+    } catch (e) {
+      console.warn("レポートバックアップ保存エラー:", e);
+    }
     console.log(`[Quiz Progress] 解答記録完了: [${targetId}] ${subject} +${attempted}問 (+${durationMinutes.toFixed(2)}分) -> 本日累計: ${todayReport.questionsAttempted}問, ${todayReport.questionsCorrect}問正解, セッション数: ${todayReport.sessions.length}`);
 
     // 2. サーバーDBへ非同期送信
