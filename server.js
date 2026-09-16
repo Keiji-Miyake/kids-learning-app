@@ -22,8 +22,19 @@ const DEFAULT_PARENT_PASSWORD_HASH = hashPassword('parent');
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
-// データベースの初期データを読み書きするヘルパー
+// 🔍 リクエストロガー（診断・デバッグ用）
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    console.log(`[HTTP] ${req.method} ${req.url} -> ${res.statusCode} (${Date.now() - start}ms)`);
+  });
+  next();
+});
+
+let dbCache = null;
+
 function readDB() {
+  if (dbCache) return dbCache;
   if (!fs.existsSync(DB_FILE)) {
     const initialData = {
       parentPasswordHash: DEFAULT_PARENT_PASSWORD_HASH,
@@ -39,6 +50,7 @@ function readDB() {
       srs: {}
     };
     fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2), 'utf-8');
+    dbCache = initialData;
     return initialData;
   }
   try {
@@ -57,10 +69,11 @@ function readDB() {
     if (!data.progress) data.progress = {};
     if (!data.srs) data.srs = {};
     if (!data.parentPasswordHash) data.parentPasswordHash = DEFAULT_PARENT_PASSWORD_HASH;
-    return data;
+    dbCache = data;
+    return dbCache;
   } catch (err) {
     console.error("DB読み込みエラー、リセットします:", err);
-    return {
+    dbCache = {
       parentPasswordHash: DEFAULT_PARENT_PASSWORD_HASH,
       profiles: [
         { id: 'profile-1', name: 'たろう', avatarEmoji: '👦', grade: 3, pin: undefined },
@@ -70,13 +83,15 @@ function readDB() {
       stats: {},
       reviews: {},
       reports: {},
-      progress: {}
+      progress: {},
+      srs: {}
     };
+    return dbCache;
   }
 }
 
-
 function writeDB(data) {
+  dbCache = data;
   try {
     fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
   } catch (err) {
@@ -236,6 +251,9 @@ app.put('/api/reports/:profileId', (req, res) => {
   const db = readDB();
   const { profileId } = req.params;
   let list = Array.isArray(req.body) ? req.body : [];
+  const count = Array.isArray(req.body) ? req.body.length : 'not array';
+  const dates = Array.isArray(req.body) ? req.body.map(r => r.date).join(',') : '';
+  console.log(`[REPORTS PUT] profileId=${profileId}, items=${count}, dates=${dates}`);
 
   // 🛡️ profile-1 の 2026-09-14 およびサンプル履歴の除外ガード
   if (profileId === 'profile-1') {
@@ -245,8 +263,7 @@ app.put('/api/reports/:profileId', (req, res) => {
   list = list.filter(r => {
     if (!r.sessions || r.sessions.length === 0) return true;
     const isAllSample = r.sessions.every(s => 
-      (s.questionRecords && s.questionRecords.some(q => q.questionId && q.questionId.startsWith('sample-'))) ||
-      s.unitName === '九九・かけ算' || s.unitName === '漢字の読み書き'
+      s.questionRecords && s.questionRecords.length > 0 && s.questionRecords.every(q => q.questionId && q.questionId.startsWith('sample-'))
     );
     return !isAllSample;
   });

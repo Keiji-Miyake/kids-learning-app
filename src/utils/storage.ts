@@ -308,6 +308,11 @@ export const storage = {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(mergedSRS)
             }).catch(() => {});
+            fetch(`/api/reports/${p.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(cleanReports)
+            }).catch(() => {});
 
             // 🎯 ノルマ設定(dailyGoal)はローカルで新しく変更されたものを優先・安全マージ
             const mergedGoal: DailyGoal = {
@@ -317,9 +322,9 @@ export const storage = {
             };
 
             const mergedWeeklySchedule: WeeklySchedule | undefined =
-              localP?.weeklySchedule !== undefined
-                ? localP.weeklySchedule
-                : p.weeklySchedule;
+              p.weeklySchedule !== undefined
+                ? p.weeklySchedule
+                : localP?.weeklySchedule;
 
             return {
               ...p,
@@ -828,6 +833,14 @@ export const storage = {
       const serialized = JSON.stringify(cleanReports);
       localStorage.setItem(key, serialized);
       localStorage.setItem(backupKey, serialized);
+
+      // サーバー側へも最新のマージ済みレポートを逆同期
+      fetch(`/api/reports/${targetId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: serialized
+      }).catch(() => {});
+
       return cleanReports;
     } catch (err) {
       console.warn("レポートのサーバー非同期同期失敗:", err);
