@@ -20,7 +20,7 @@ function hashPassword(password) {
 const DEFAULT_PARENT_PASSWORD_HASH = hashPassword('parent');
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
 
 // データベースの初期データを読み書きするヘルパー
 function readDB() {
