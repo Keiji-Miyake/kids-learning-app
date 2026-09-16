@@ -227,7 +227,7 @@ export const App: React.FC = () => {
     const todayReportBefore = reportsBefore.find(r => r.date === todayStr);
 
     const goal = getEffectiveDailyGoal(activeProfile);
-    const isAchievedBefore = checkIsDailyGoalAchieved(goal, todayReportBefore, activeProfile.grade);
+    const progressBefore = getGoalProgress(goal, todayReportBefore, activeProfile.grade);
 
     // アクティブなプロファイルに対して学習レポートおよびセッションを登録
     const unitName = activeUnit ? activeUnit.unitName : '全般（ランダム）';
@@ -240,15 +240,14 @@ export const App: React.FC = () => {
 
     const reportsAfter = storage.getReports(activeProfile.id);
     const todayReportAfter = reportsAfter.find(r => r.date === todayStr);
-    const isAchievedAfter = checkIsDailyGoalAchieved(goal, todayReportAfter, activeProfile.grade);
-
+    const progressAfter = getGoalProgress(goal, todayReportAfter, activeProfile.grade);
 
     // 選択された単元がある場合は進捗完了を記録
     if (activeUnit) {
       markUnitCompleted(activeProfile.id, activeUnit.code);
     }
 
-    if (!isAchievedBefore && isAchievedAfter) {
+    if (!progressBefore.isAchieved && progressAfter.isAchieved) {
       setShowGoalAchievedModal(true);
     }
 

@@ -245,10 +245,13 @@ export const getGoalProgress = (
 
 
   const todayQuestions = report.totalQuestions !== undefined ? report.totalQuestions : (report.questionsAttempted || 0);
-  const minutesSource = rawReport?.subjectMinutes || report.subjectMinutes;
-  const totalMinutes = minutesSource
-    ? Math.round(Object.values(minutesSource).reduce((acc, m) => acc + (m || 0), 0) * 10) / 10
+  const rawMinutes = rawReport?.subjectMinutes
+    ? Object.values(rawReport.subjectMinutes).reduce((acc, m) => acc + (m || 0), 0)
     : 0;
+  const filteredMinutes = report?.subjectMinutes
+    ? Object.values(report.subjectMinutes).reduce((acc, m) => acc + (m || 0), 0)
+    : 0;
+  const totalMinutes = Math.round(Math.max(rawMinutes, filteredMinutes) * 10) / 10;
 
   if (mode === 'total_count') {
     const target = goal.targetQuestions || 5;
@@ -304,12 +307,13 @@ export const getGoalProgress = (
   const totalConfigured = configuredSubjects.length;
   const completedCount = configuredSubjects.filter(s => s.isCompleted).length;
   const percent = totalConfigured > 0 ? Math.round((completedCount / totalConfigured) * 100) : (isAchieved ? 100 : 0);
+  const finalAchieved = totalConfigured > 0 ? (completedCount === totalConfigured) : isAchieved;
 
   return {
     goalType: 'subject_specific',
     percent,
     currentLabel: `${completedCount} / ${totalConfigured} 教科達成`,
-    isAchieved,
+    isAchieved: finalAchieved,
     subjects: configuredSubjects
   };
 };
