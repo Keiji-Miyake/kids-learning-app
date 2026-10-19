@@ -47,6 +47,7 @@ export interface DailyGoal {
   targetSubject?: Subject | 'all'; // 特定対象科目
   targetUnitName?: string | 'all'; // 特定対象単元名
   subjectGoals?: Partial<Record<Subject, SubjectGoal>>; // 教科別個別の目標
+  updatedAt?: number;      // タイムスタンプ (ミリ秒) - 新旧判定用
 }
 
 export type DayOfWeek = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
@@ -54,6 +55,7 @@ export type DayOfWeek = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
 export interface WeeklySchedule {
   enabled: boolean; // 曜日別スケジュールが有効か
   days?: Partial<Record<DayOfWeek, DailyGoal>>; // 曜日ごとの個別DailyGoal
+  updatedAt?: number;      // タイムスタンプ (ミリ秒) - 新旧判定用
 }
 
 export type SemesterSystem = '3-term' | '2-term';
@@ -69,6 +71,7 @@ export interface UserProfile {
   dailyGoal?: DailyGoal; // 保護者が設定した1日のノルマ＆ご褒美
   weeklySchedule?: WeeklySchedule; // 曜日別スケジュール設定
   stats: UserStats;
+  updatedAt?: number; // プロファイル全体の更新タイムスタンプ
 }
 
 

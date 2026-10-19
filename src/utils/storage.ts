@@ -1,4 +1,4 @@
-import type { UserProfile, UserStats, ReviewItem, DailyReport, Subject, DailyGoal, QuizSession, SemesterSystem, Question, QuestionSRSItem, SessionQuestionRecord, WeeklySchedule } from '../types';
+import type { UserProfile, UserStats, ReviewItem, DailyReport, Subject, DailyGoal, QuizSession, SemesterSystem, Question, QuestionSRSItem, SessionQuestionRecord } from '../types';
 import { evaluateSRSAnswer, generateQuestionKey } from './spacedRepetition';
 import { calculateGradeFromBirthDate } from './gradeCalculator';
 
@@ -314,17 +314,38 @@ export const storage = {
               body: JSON.stringify(cleanReports)
             }).catch(() => {});
 
-            // 🎯 ノルマ設定(dailyGoal)はローカルで新しく変更されたものを優先・安全マージ
-            const mergedGoal: DailyGoal = {
-              ...(defaultDailyGoal),
-              ...(p.dailyGoal || {}),
-              ...(localP?.dailyGoal || {})
-            };
+            // 🎯 ノルマ設定(dailyGoal)と曜日別スケジュール(weeklySchedule)のタイムスタンプ比較＆保護マージ
+            const serverGoal = p.dailyGoal;
+            const localGoal = localP?.dailyGoal;
+            const serverGoalTime = serverGoal?.updatedAt || 0;
+            const localGoalTime = localGoal?.updatedAt || 0;
 
-            const mergedWeeklySchedule: WeeklySchedule | undefined =
-              p.weeklySchedule !== undefined
-                ? p.weeklySchedule
-                : localP?.weeklySchedule;
+            // タイムスタンプが新しい方を優先（同じまたは未設定の場合はローカル優先）
+            const chosenGoal = (serverGoalTime > localGoalTime)
+              ? { ...defaultDailyGoal, ...serverGoal }
+              : { ...defaultDailyGoal, ...(serverGoal || {}), ...(localGoal || {}) };
+
+            const serverWeekly = p.weeklySchedule;
+            const localWeekly = localP?.weeklySchedule;
+            const serverWeeklyTime = serverWeekly?.updatedAt || 0;
+            const localWeeklyTime = localWeekly?.updatedAt || 0;
+
+            const chosenWeeklySchedule = (serverWeeklyTime > localWeeklyTime)
+              ? serverWeekly
+              : (localWeekly !== undefined ? localWeekly : serverWeekly);
+
+            // ローカルの方が新しい場合は、サーバー側へも最新設定をバックグラウンド逆同期
+            if (localGoalTime > serverGoalTime || localWeeklyTime > serverWeeklyTime) {
+              fetch('/api/profiles', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  ...p,
+                  dailyGoal: chosenGoal,
+                  weeklySchedule: chosenWeeklySchedule
+                })
+              }).catch(() => {});
+            }
 
             return {
               ...p,
@@ -333,8 +354,8 @@ export const storage = {
               birthDate: p.birthDate !== undefined ? p.birthDate : localP?.birthDate,
               pin: p.pin !== undefined ? p.pin : localP?.pin,
               grade: p.grade || localP?.grade || 3,
-              dailyGoal: mergedGoal,
-              weeklySchedule: mergedWeeklySchedule,
+              dailyGoal: chosenGoal,
+              weeklySchedule: chosenWeeklySchedule,
               semesterSystem: p.semesterSystem || localP?.semesterSystem,
               stats: finalStats
             };
@@ -497,11 +518,24 @@ export const storage = {
 
   // プロファイルの更新 (PIN設定・名前・学年変更など)
   updateProfile(updatedProfile: UserProfile): void {
+    const withTimestamp: UserProfile = {
+      ...updatedProfile,
+      updatedAt: Date.now(),
+      dailyGoal: updatedProfile.dailyGoal ? {
+        ...updatedProfile.dailyGoal,
+        updatedAt: updatedProfile.dailyGoal.updatedAt || Date.now()
+      } : undefined,
+      weeklySchedule: updatedProfile.weeklySchedule ? {
+        ...updatedProfile.weeklySchedule,
+        updatedAt: updatedProfile.weeklySchedule.updatedAt || Date.now()
+      } : undefined
+    };
+
     // 1. ローカル保存
     const profiles = this.getProfiles();
-    const index = profiles.findIndex(p => p.id === updatedProfile.id);
+    const index = profiles.findIndex(p => p.id === withTimestamp.id);
     if (index !== -1) {
-      profiles[index] = updatedProfile;
+      profiles[index] = withTimestamp;
       localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles));
     }
 
@@ -509,7 +543,7 @@ export const storage = {
     fetch('/api/profiles', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updatedProfile)
+      body: JSON.stringify(withTimestamp)
     }).catch(err => console.warn("サーバー更新エラー:", err));
   },
 

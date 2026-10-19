@@ -202,10 +202,18 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onClose, initi
   const handleSaveGoal = (updatedGoal: DailyGoal, updatedSchedule?: WeeklySchedule) => {
     if (!targetProfile) return;
 
+    const now = Date.now();
     const updatedProfile: UserProfile = {
       ...targetProfile,
-      dailyGoal: updatedGoal,
-      weeklySchedule: updatedSchedule !== undefined ? updatedSchedule : targetProfile.weeklySchedule
+      updatedAt: now,
+      dailyGoal: {
+        ...updatedGoal,
+        updatedAt: updatedGoal.updatedAt || now
+      },
+      weeklySchedule: updatedSchedule !== undefined ? {
+        ...updatedSchedule,
+        updatedAt: updatedSchedule.updatedAt || now
+      } : targetProfile.weeklySchedule
     };
 
     storage.updateProfile(updatedProfile);

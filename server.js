@@ -121,7 +121,7 @@ app.post('/api/profiles', (req, res) => {
       grade: newProfile.grade,
       pin: newProfile.pin,
       semesterSystem: newProfile.semesterSystem || db.profiles[existingIdx].semesterSystem,
-      dailyGoal: newProfile.dailyGoal || db.profiles[existingIdx].dailyGoal,
+      dailyGoal: newProfile.dailyGoal !== undefined ? newProfile.dailyGoal : db.profiles[existingIdx].dailyGoal,
       weeklySchedule: newProfile.weeklySchedule !== undefined ? newProfile.weeklySchedule : db.profiles[existingIdx].weeklySchedule
     };
     if (newProfile.stats) {
@@ -164,7 +164,7 @@ app.put('/api/profiles', (req, res) => {
       grade: updated.grade,
       pin: updated.pin,
       semesterSystem: updated.semesterSystem || db.profiles[idx].semesterSystem,
-      dailyGoal: updated.dailyGoal || db.profiles[idx].dailyGoal,
+      dailyGoal: updated.dailyGoal !== undefined ? updated.dailyGoal : db.profiles[idx].dailyGoal,
       weeklySchedule: updated.weeklySchedule !== undefined ? updated.weeklySchedule : db.profiles[idx].weeklySchedule
     };
     writeDB(db);

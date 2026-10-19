@@ -611,6 +611,14 @@ export const App: React.FC = () => {
               setActiveGrade(latestProfile.grade || 3);
               setStats(storage.getStats(latestProfile.id));
 
+              // 新しいノルマで達成判定を再評価し、未達成であれば達成モーダルを非表示
+              const todayStr = new Date().toISOString().split('T')[0];
+              const todayReport = storage.getReports(latestProfile.id).find(r => r.date === todayStr);
+              const goal = getEffectiveDailyGoal(latestProfile);
+              if (!checkIsDailyGoalAchieved(goal, todayReport, latestProfile.grade)) {
+                setShowGoalAchievedModal(false);
+              }
+
               if (previousScreenBeforeDashboard === 'profileModal') {
                 setShowProfileModal(true);
                 setCurrentScreen('home');

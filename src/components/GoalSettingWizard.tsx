@@ -52,8 +52,8 @@ export const GoalSettingWizard: React.FC<GoalSettingWizardProps> = ({ profile, o
 
   const [subjectGoals, setSubjectGoals] = useState<Record<Subject, SubjectGoal>>(() => {
     const initial: Record<Subject, SubjectGoal> = {
-      math: { targetQuestions: 3, targetMinutes: 5 },
-      japanese: { targetQuestions: 3, targetMinutes: 5 },
+      math: { targetQuestions: 3, targetMinutes: 0 },
+      japanese: { targetQuestions: 3, targetMinutes: 0 },
       science: { targetQuestions: 0, targetMinutes: 0 },
       social: { targetQuestions: 0, targetMinutes: 0 },
       english: { targetQuestions: 0, targetMinutes: 0 }
@@ -86,8 +86,8 @@ export const GoalSettingWizard: React.FC<GoalSettingWizardProps> = ({ profile, o
     targetSubject: 'all',
     targetUnitName: 'all',
     subjectGoals: {
-      math: { targetQuestions: 3, targetMinutes: 5 },
-      japanese: { targetQuestions: 3, targetMinutes: 5 },
+      math: { targetQuestions: 3, targetMinutes: 0 },
+      japanese: { targetQuestions: 3, targetMinutes: 0 },
       science: { targetQuestions: 0, targetMinutes: 0 },
       social: { targetQuestions: 0, targetMinutes: 0 },
       english: { targetQuestions: 0, targetMinutes: 0 }
@@ -103,7 +103,8 @@ export const GoalSettingWizard: React.FC<GoalSettingWizardProps> = ({ profile, o
     rewardText: rewardText.trim() || '🎉 ノルマ達成おめでとう！',
     targetSubject,
     targetUnitName,
-    subjectGoals
+    subjectGoals,
+    updatedAt: Date.now()
   });
 
   const loadGoalToForm = (goal: DailyGoal) => {
@@ -115,8 +116,8 @@ export const GoalSettingWizard: React.FC<GoalSettingWizardProps> = ({ profile, o
     setTargetUnitName(goal.targetUnitName || 'all');
 
     const nextGoals: Record<Subject, SubjectGoal> = {
-      math: { targetQuestions: 3, targetMinutes: 5 },
-      japanese: { targetQuestions: 3, targetMinutes: 5 },
+      math: { targetQuestions: 3, targetMinutes: 0 },
+      japanese: { targetQuestions: 3, targetMinutes: 0 },
       science: { targetQuestions: 0, targetMinutes: 0 },
       social: { targetQuestions: 0, targetMinutes: 0 },
       english: { targetQuestions: 0, targetMinutes: 0 }
@@ -137,7 +138,7 @@ export const GoalSettingWizard: React.FC<GoalSettingWizardProps> = ({ profile, o
     setSubjectGoals(nextGoals);
   };
 
-  // プロファイル切り替え時にステート同期
+  // プロファイル切り替え時にステート同期 (profile.id が変化した時のみ発火させて不要なリセットを防止)
   useEffect(() => {
     setCurrentStep(1);
     const initialBase = profile.dailyGoal || {
@@ -148,8 +149,8 @@ export const GoalSettingWizard: React.FC<GoalSettingWizardProps> = ({ profile, o
       targetSubject: 'all',
       targetUnitName: 'all',
       subjectGoals: {
-        math: { targetQuestions: 3, targetMinutes: 5 },
-        japanese: { targetQuestions: 3, targetMinutes: 5 },
+        math: { targetQuestions: 3, targetMinutes: 0 },
+        japanese: { targetQuestions: 3, targetMinutes: 0 },
         science: { targetQuestions: 0, targetMinutes: 0 },
         social: { targetQuestions: 0, targetMinutes: 0 },
         english: { targetQuestions: 0, targetMinutes: 0 }
@@ -166,7 +167,7 @@ export const GoalSettingWizard: React.FC<GoalSettingWizardProps> = ({ profile, o
 
     const initialGoal = enabled && days[today] ? days[today]! : initialBase;
     loadGoalToForm(initialGoal);
-  }, [profile]);
+  }, [profile.id]);
 
   const handleSelectDay = (day: DayOfWeek) => {
     sound.playClick();
@@ -185,13 +186,15 @@ export const GoalSettingWizard: React.FC<GoalSettingWizardProps> = ({ profile, o
   const handleToggleWeekly = (enabled: boolean) => {
     sound.playClick();
     setIsWeeklyEnabled(enabled);
+    const currentGoal = getCurrentFormGoal();
     if (enabled) {
-      const currentGoal = getCurrentFormGoal();
       setBaseGoal(currentGoal);
       const targetGoal = weeklyDays[selectedDay] || currentGoal;
       loadGoalToForm(targetGoal);
     } else {
-      loadGoalToForm(baseGoal);
+      // 曜日別をOFFにする際、編集中の新しい設定をbaseGoalにも反映して維持する
+      setBaseGoal(currentGoal);
+      loadGoalToForm(currentGoal);
     }
   };
 
@@ -251,7 +254,11 @@ export const GoalSettingWizard: React.FC<GoalSettingWizardProps> = ({ profile, o
     e.preventDefault();
     sound.playClick();
 
-    const currentFormGoal = getCurrentFormGoal();
+    const now = Date.now();
+    const currentFormGoal = {
+      ...getCurrentFormGoal(),
+      updatedAt: now
+    };
 
     if (isWeeklyEnabled) {
       const finalWeeklyDays = {
@@ -261,15 +268,24 @@ export const GoalSettingWizard: React.FC<GoalSettingWizardProps> = ({ profile, o
       setWeeklyDays(finalWeeklyDays);
       const schedule: WeeklySchedule = {
         enabled: true,
-        days: finalWeeklyDays
+        days: finalWeeklyDays,
+        updatedAt: now
       };
-      onSave(baseGoal, schedule);
+      // 基本目標も更新して未設定曜日へのフォールバック時も新しい目標値が使われるようにする
+      const updatedBase = {
+        ...baseGoal,
+        ...currentFormGoal,
+        updatedAt: now
+      };
+      setBaseGoal(updatedBase);
+      onSave(updatedBase, schedule);
       setSavedToast(`${profile.name} さんの曜日別スケジュール＆ノルマを保存しました！`);
     } else {
       setBaseGoal(currentFormGoal);
       const schedule: WeeklySchedule = {
         enabled: false,
-        days: weeklyDays
+        days: weeklyDays,
+        updatedAt: now
       };
       onSave(currentFormGoal, schedule);
       setSavedToast(`${profile.name} さんのノルマ・ご褒美を保存しました！`);
