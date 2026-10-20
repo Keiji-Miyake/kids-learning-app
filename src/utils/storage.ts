@@ -1,4 +1,4 @@
-import type { UserProfile, UserStats, ReviewItem, DailyReport, Subject, DailyGoal, QuizSession, SemesterSystem, Question, QuestionSRSItem, SessionQuestionRecord } from '../types';
+import type { UserProfile, UserStats, ReviewItem, DailyReport, Subject, DailyGoal, WeeklySchedule, QuizSession, SemesterSystem, Question, QuestionSRSItem, SessionQuestionRecord } from '../types';
 import { evaluateSRSAnswer, generateQuestionKey } from './spacedRepetition';
 import { calculateGradeFromBirthDate } from './gradeCalculator';
 
@@ -320,22 +320,24 @@ export const storage = {
             const serverGoalTime = serverGoal?.updatedAt || 0;
             const localGoalTime = localGoal?.updatedAt || 0;
 
-            // タイムスタンプが新しい方を優先（同じまたは未設定の場合はローカル優先）
-            const chosenGoal = (serverGoalTime > localGoalTime)
-              ? { ...defaultDailyGoal, ...serverGoal }
-              : { ...defaultDailyGoal, ...(serverGoal || {}), ...(localGoal || {}) };
+            // 🌟 ローカルが明確に新しい場合のみローカル優先、それ以外はサーバーを完全優先（サーバー主導）
+            const isLocalGoalNewer = Boolean(localGoal?.updatedAt && localGoalTime > serverGoalTime);
+            const chosenGoal: DailyGoal = isLocalGoalNewer && localGoal
+              ? { ...defaultDailyGoal, ...localGoal }
+              : (serverGoal ? { ...defaultDailyGoal, ...serverGoal } : (localGoal ? { ...defaultDailyGoal, ...localGoal } : defaultDailyGoal));
 
             const serverWeekly = p.weeklySchedule;
             const localWeekly = localP?.weeklySchedule;
             const serverWeeklyTime = serverWeekly?.updatedAt || 0;
             const localWeeklyTime = localWeekly?.updatedAt || 0;
 
-            const chosenWeeklySchedule = (serverWeeklyTime > localWeeklyTime)
-              ? serverWeekly
-              : (localWeekly !== undefined ? localWeekly : serverWeekly);
+            const isLocalWeeklyNewer = Boolean(localWeekly?.updatedAt && localWeeklyTime > serverWeeklyTime);
+            const chosenWeeklySchedule: WeeklySchedule | undefined = isLocalWeeklyNewer && localWeekly
+              ? localWeekly
+              : (serverWeekly !== undefined ? serverWeekly : localWeekly);
 
-            // ローカルの方が新しい場合は、サーバー側へも最新設定をバックグラウンド逆同期
-            if (localGoalTime > serverGoalTime || localWeeklyTime > serverWeeklyTime) {
+            // ローカルの方が明確に新しい場合のみ、サーバー側へ最新設定をバックグラウンド逆同期
+            if (isLocalGoalNewer || isLocalWeeklyNewer) {
               fetch('/api/profiles', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },

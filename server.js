@@ -102,7 +102,22 @@ function writeDB(data) {
 // 1. プロファイル一覧取得
 app.get('/api/profiles', (req, res) => {
   const db = readDB();
-  res.json(db.profiles);
+  const profiles = (db.profiles || []).map(p => {
+    const pUpdated = p.updatedAt || 1;
+    return {
+      ...p,
+      updatedAt: pUpdated,
+      dailyGoal: p.dailyGoal ? {
+        ...p.dailyGoal,
+        updatedAt: p.dailyGoal.updatedAt || pUpdated
+      } : p.dailyGoal,
+      weeklySchedule: p.weeklySchedule ? {
+        ...p.weeklySchedule,
+        updatedAt: p.weeklySchedule.updatedAt || pUpdated
+      } : p.weeklySchedule
+    };
+  });
+  res.json(profiles);
 });
 
 // 2. プロファイル作成（同名・同IDの重複防止付き）
@@ -113,6 +128,7 @@ app.post('/api/profiles', (req, res) => {
   // すでに同名または同IDのプロファイルが存在するかチェック
   const existingIdx = db.profiles.findIndex(p => p.id === newProfile.id || p.name === newProfile.name);
   if (existingIdx !== -1) {
+    const now = Date.now();
     db.profiles[existingIdx] = {
       id: db.profiles[existingIdx].id,
       name: newProfile.name,
@@ -121,14 +137,22 @@ app.post('/api/profiles', (req, res) => {
       grade: newProfile.grade,
       pin: newProfile.pin,
       semesterSystem: newProfile.semesterSystem || db.profiles[existingIdx].semesterSystem,
-      dailyGoal: newProfile.dailyGoal !== undefined ? newProfile.dailyGoal : db.profiles[existingIdx].dailyGoal,
-      weeklySchedule: newProfile.weeklySchedule !== undefined ? newProfile.weeklySchedule : db.profiles[existingIdx].weeklySchedule
+      dailyGoal: newProfile.dailyGoal !== undefined ? {
+        ...newProfile.dailyGoal,
+        updatedAt: newProfile.dailyGoal?.updatedAt || now
+      } : db.profiles[existingIdx].dailyGoal,
+      weeklySchedule: newProfile.weeklySchedule !== undefined ? {
+        ...newProfile.weeklySchedule,
+        updatedAt: newProfile.weeklySchedule?.updatedAt || now
+      } : db.profiles[existingIdx].weeklySchedule,
+      updatedAt: newProfile.updatedAt || now
     };
     if (newProfile.stats) {
       db.stats[db.profiles[existingIdx].id] = newProfile.stats;
     }
   } else {
     // 新規プロファイル一覧に追加
+    const now = Date.now();
     db.profiles.push({
       id: newProfile.id,
       name: newProfile.name,
@@ -137,8 +161,15 @@ app.post('/api/profiles', (req, res) => {
       grade: newProfile.grade,
       pin: newProfile.pin,
       semesterSystem: newProfile.semesterSystem,
-      dailyGoal: newProfile.dailyGoal,
-      weeklySchedule: newProfile.weeklySchedule
+      dailyGoal: newProfile.dailyGoal ? {
+        ...newProfile.dailyGoal,
+        updatedAt: newProfile.dailyGoal?.updatedAt || now
+      } : undefined,
+      weeklySchedule: newProfile.weeklySchedule ? {
+        ...newProfile.weeklySchedule,
+        updatedAt: newProfile.weeklySchedule?.updatedAt || now
+      } : undefined,
+      updatedAt: newProfile.updatedAt || now
     });
     db.stats[newProfile.id] = newProfile.stats;
     db.reviews[newProfile.id] = [];
@@ -156,6 +187,7 @@ app.put('/api/profiles', (req, res) => {
   const idx = db.profiles.findIndex(p => p.id === updated.id);
   
   if (idx !== -1) {
+    const now = Date.now();
     db.profiles[idx] = {
       id: updated.id,
       name: updated.name,
@@ -164,8 +196,15 @@ app.put('/api/profiles', (req, res) => {
       grade: updated.grade,
       pin: updated.pin,
       semesterSystem: updated.semesterSystem || db.profiles[idx].semesterSystem,
-      dailyGoal: updated.dailyGoal !== undefined ? updated.dailyGoal : db.profiles[idx].dailyGoal,
-      weeklySchedule: updated.weeklySchedule !== undefined ? updated.weeklySchedule : db.profiles[idx].weeklySchedule
+      dailyGoal: updated.dailyGoal !== undefined ? {
+        ...updated.dailyGoal,
+        updatedAt: updated.dailyGoal?.updatedAt || now
+      } : db.profiles[idx].dailyGoal,
+      weeklySchedule: updated.weeklySchedule !== undefined ? {
+        ...updated.weeklySchedule,
+        updatedAt: updated.weeklySchedule?.updatedAt || now
+      } : db.profiles[idx].weeklySchedule,
+      updatedAt: updated.updatedAt || now
     };
     writeDB(db);
     res.json({ success: true });

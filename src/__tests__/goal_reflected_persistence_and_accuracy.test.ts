@@ -155,4 +155,71 @@ describe('新目標値反映および科目別目標（問題数＋時間）の�
     expect(afterSync.dailyGoal?.targetQuestions).toBe(20);
     expect(afterSync.dailyGoal?.rewardText).toBe('最新のご褒美！');
   });
+
+  it('子端末に古い1分のローカルキャッシュがある場合でも、サーバーの更新された2分ノルマがsyncFromServerで確実に反映されること', async () => {
+    const profile = storage.getActiveProfile();
+
+    // 子端末の古いローカルキャッシュ（各教科1分、古いtimestampまたはtimestampなし）
+    const staleLocalGoal: DailyGoal = {
+      goalType: 'subject_specific',
+      targetQuestions: 5,
+      targetMinutes: 10,
+      rewardText: '古いご褒美',
+      subjectGoals: {
+        math: { targetQuestions: 15, targetMinutes: 1 },
+        japanese: { targetQuestions: 10, targetMinutes: 1 },
+        science: { targetQuestions: 10, targetMinutes: 1 },
+        social: { targetQuestions: 10, targetMinutes: 1 },
+        english: { targetQuestions: 15, targetMinutes: 1 }
+      },
+      updatedAt: 1000
+    };
+    storage.updateProfile({
+      ...profile,
+      dailyGoal: staleLocalGoal
+    });
+
+    // サーバーには保護者が「全部2分にした」最新設定 (updatedAt: 5000)
+    const serverUpdatedGoal: DailyGoal = {
+      goalType: 'subject_specific',
+      targetQuestions: 5,
+      targetMinutes: 10,
+      rewardText: 'ゲームOK！',
+      subjectGoals: {
+        math: { targetQuestions: 15, targetMinutes: 2 },
+        japanese: { targetQuestions: 10, targetMinutes: 2 },
+        science: { targetQuestions: 10, targetMinutes: 2 },
+        social: { targetQuestions: 10, targetMinutes: 2 },
+        english: { targetQuestions: 15, targetMinutes: 2 }
+      },
+      updatedAt: 5000
+    };
+    const serverProfiles = [
+      {
+        id: profile.id,
+        name: profile.name,
+        avatarEmoji: profile.avatarEmoji,
+        grade: profile.grade,
+        dailyGoal: serverUpdatedGoal,
+        weeklySchedule: { enabled: false, days: {} }
+      }
+    ];
+
+    global.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url === '/api/profiles') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(serverProfiles) });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+    });
+
+    await storage.syncFromServer();
+
+    const afterSync = storage.getActiveProfile();
+    const effectiveGoal = getEffectiveDailyGoal(afterSync);
+    expect(effectiveGoal.subjectGoals?.math?.targetMinutes).toBe(2);
+    expect(effectiveGoal.subjectGoals?.japanese?.targetMinutes).toBe(2);
+    expect(effectiveGoal.subjectGoals?.science?.targetMinutes).toBe(2);
+    expect(effectiveGoal.subjectGoals?.social?.targetMinutes).toBe(2);
+    expect(effectiveGoal.subjectGoals?.english?.targetMinutes).toBe(2);
+  });
 });
