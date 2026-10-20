@@ -22,6 +22,14 @@ const DEFAULT_PARENT_PASSWORD_HASH = hashPassword('parent');
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
+// 🚫 APIレスポンスのブラウザキャッシュ完全無効化
+app.use('/api', (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  next();
+});
+
 // 🔍 リクエストロガー（診断・デバッグ用）
 app.use((req, res, next) => {
   const start = Date.now();
@@ -435,6 +443,9 @@ app.use((req, res, next) => {
   if (req.path.startsWith('/api')) return next();
   const indexPath = path.join(DIST_DIR, 'index.html');
   if (fs.existsSync(indexPath)) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     return res.sendFile(indexPath);
   }
   res.status(200).send('Kids Learning App API Server is Running');

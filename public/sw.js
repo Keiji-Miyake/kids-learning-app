@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kids-learnquest-v2';
+const CACHE_NAME = 'kids-learnquest-v3';
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
